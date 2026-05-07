@@ -1,0 +1,70 @@
+{% extends 'base.html.twig' %}
+{% block title %}My Appointments — Appointy{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">My Appointments</h4>
+        <p class="text-muted small mb-0">Welcome back, {{ app.user.name }}</p>
+    </div>
+    <a href="{{ path('client_organizations') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Book New
+    </a>
+</div>
+
+{% if appointments is empty %}
+    <div class="card p-5 text-center">
+        <div style="font-size:3rem; color:#d1d5db"><i class="bi bi-calendar-x"></i></div>
+        <h5 class="fw-semibold mt-3 mb-1">No appointments yet</h5>
+        <p class="text-muted small mb-3">Browse organizations and book your first appointment.</p>
+        <a href="{{ path('client_organizations') }}" class="btn btn-primary mx-auto" style="width:fit-content">
+            <i class="bi bi-search me-1"></i>Find Organizations
+        </a>
+    </div>
+{% else %}
+    <div class="row g-3">
+        {% for appt in appointments %}
+            <div class="col-12">
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="fw-bold mb-0">{{ appt.organization.name }}</h6>
+                                {% if appt.organization.category %}
+                                    <span class="badge bg-light text-secondary border small">{{ appt.organization.category }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-muted small">
+                                <i class="bi bi-calendar3 me-1"></i>{{ appt.appointmentDate|date('D, M j Y') }}
+                                &nbsp;·&nbsp;
+                                <i class="bi bi-clock me-1"></i>{{ appt.appointmentTime|date('H:i') }}
+                            </div>
+                            {% if appt.notes %}
+                                <div class="text-muted small mt-1">
+                                    <i class="bi bi-chat-left-text me-1"></i>{{ appt.notes }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="status-badge badge-{{ appt.status }}">
+                                {% if appt.status == 'pending' %}<i class="bi bi-hourglass-split me-1"></i>{% endif %}
+                                {% if appt.status == 'confirmed' %}<i class="bi bi-check-circle me-1"></i>{% endif %}
+                                {% if appt.status == 'cancelled' %}<i class="bi bi-x-circle me-1"></i>{% endif %}
+                                {{ appt.status|capitalize }}
+                            </span>
+                            {% if appt.status == 'pending' %}
+                                <form method="post" action="{{ path('client_cancel', {id: appt.id}) }}"
+                                      onsubmit="return confirm('Cancel this appointment?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

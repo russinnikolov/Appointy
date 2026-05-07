@@ -1,0 +1,59 @@
+{% extends 'base.html.twig' %}
+{% block title %}Book Appointment — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-sm-10 col-md-7 col-lg-6">
+        <a href="{{ path('client_organizations') }}" class="btn btn-link text-muted ps-0 mb-3 small">
+            <i class="bi bi-arrow-left me-1"></i>Back to organizations
+        </a>
+
+        <div class="card p-4 p-md-5">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width:52px;height:52px;background:#ede9fe;color:#6366f1;font-size:1.5rem">
+                    <i class="bi bi-building"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0">{{ organization.name }}</h5>
+                    <p class="text-muted small mb-0">
+                        {% if organization.category %}{{ organization.category }}{% endif %}
+                        {% if organization.address %}· {{ organization.address }}{% endif %}
+                    </p>
+                </div>
+            </div>
+
+            {% if error %}
+                <div class="alert alert-danger py-2 small">
+                    <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Date <span class="text-danger">*</span></label>
+                    <input type="date" name="date" class="form-control"
+                           min="{{ "now"|date("Y-m-d") }}" required
+                           value="{{ app.request.request.get('date') }}">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Time <span class="text-danger">*</span></label>
+                    <input type="time" name="time" class="form-control" required
+                           value="{{ app.request.request.get('time', '09:00') }}">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">Notes <span class="text-muted">(optional)</span></label>
+                    <textarea name="notes" class="form-control" rows="3"
+                              placeholder="Any special requests or information…">{{ app.request.request.get('notes') }}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                    <i class="bi bi-calendar-check me-1"></i>Confirm Booking
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

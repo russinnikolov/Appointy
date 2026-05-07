@@ -1,0 +1,137 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ organization.name }} — Dashboard{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-0">{{ organization.name }}</h4>
+        <p class="text-muted small mb-0">
+            {{ organization.category }}{% if organization.category and organization.address %} · {% endif %}{{ organization.address }}
+        </p>
+    </div>
+    <span class="badge bg-light text-secondary border">
+        <i class="bi bi-building me-1"></i>Business Account
+    </span>
+</div>
+
+{# Stats #}
+<div class="row g-3 mb-4">
+    <div class="col-4">
+        <div class="card p-3 text-center">
+            <div class="fw-bold fs-3 mb-0" style="color:#92400e">{{ counts.pending }}</div>
+            <div class="text-muted small">Pending</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card p-3 text-center">
+            <div class="fw-bold fs-3 mb-0" style="color:#065f46">{{ counts.confirmed }}</div>
+            <div class="text-muted small">Confirmed</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card p-3 text-center">
+            <div class="fw-bold fs-3 mb-0" style="color:#991b1b">{{ counts.cancelled }}</div>
+            <div class="text-muted small">Cancelled</div>
+        </div>
+    </div>
+</div>
+
+{# Filter tabs #}
+<ul class="nav nav-pills mb-3" id="statusTabs">
+    <li class="nav-item">
+        <button class="nav-link active" onclick="filterStatus('all', this)">All</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" onclick="filterStatus('pending', this)">Pending</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" onclick="filterStatus('confirmed', this)">Confirmed</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" onclick="filterStatus('cancelled', this)">Cancelled</button>
+    </li>
+</ul>
+
+{% if appointments is empty %}
+    <div class="card p-5 text-center">
+        <div style="font-size:3rem; color:#d1d5db"><i class="bi bi-calendar-x"></i></div>
+        <h5 class="fw-semibold mt-3 mb-1">No appointments yet</h5>
+        <p class="text-muted small">Appointments booked by clients will appear here.</p>
+    </div>
+{% else %}
+    <div class="row g-3" id="appointmentList">
+        {% for appt in appointments %}
+            <div class="col-12 appt-row" data-status="{{ appt.status }}">
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                     style="width:34px;height:34px;background:#f3f4f6;font-size:.85rem;color:#6b7280">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0">{{ appt.client.name }}</h6>
+                            </div>
+                            <div class="text-muted small ps-1">
+                                <i class="bi bi-calendar3 me-1"></i>{{ appt.appointmentDate|date('D, M j Y') }}
+                                &nbsp;·&nbsp;
+                                <i class="bi bi-clock me-1"></i>{{ appt.appointmentTime|date('H:i') }}
+                            </div>
+                            {% if appt.client.phone %}
+                                <div class="text-muted small ps-1">
+                                    <i class="bi bi-telephone me-1"></i>{{ appt.client.phone }}
+                                </div>
+                            {% endif %}
+                            {% if appt.notes %}
+                                <div class="text-muted small ps-1 mt-1">
+                                    <i class="bi bi-chat-left-text me-1"></i>{{ appt.notes }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="status-badge badge-{{ appt.status }}">
+                                {% if appt.status == 'pending' %}<i class="bi bi-hourglass-split me-1"></i>{% endif %}
+                                {% if appt.status == 'confirmed' %}<i class="bi bi-check-circle me-1"></i>{% endif %}
+                                {% if appt.status == 'cancelled' %}<i class="bi bi-x-circle me-1"></i>{% endif %}
+                                {{ appt.status|capitalize }}
+                            </span>
+                            {% if appt.status == 'pending' %}
+                                <form method="post" action="{{ path('business_confirm', {id: appt.id}) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-success btn-sm" title="Confirm">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="{{ path('business_cancel', {id: appt.id}) }}" class="d-inline"
+                                      onsubmit="return confirm('Cancel this appointment?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancel">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            {% elseif appt.status == 'confirmed' %}
+                                <form method="post" action="{{ path('business_cancel', {id: appt.id}) }}" class="d-inline"
+                                      onsubmit="return confirm('Cancel this confirmed appointment?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancel">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterStatus(status, btn) {
+    document.querySelectorAll('#statusTabs .nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.appt-row').forEach(row => {
+        row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}
