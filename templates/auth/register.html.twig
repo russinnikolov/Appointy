@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Register — Appointy{% endblock %}
+{% block title %}{{ 'nav.register'|trans }} — Grafira{% endblock %}
 
 {% block body %}
 <div class="row justify-content-center">
@@ -7,22 +7,21 @@
         <div class="card p-4 p-md-5">
             <div class="text-center mb-4">
                 <span style="font-size:2.5rem; color:#6366f1"><i class="bi bi-person-plus-fill"></i></span>
-                <h4 class="fw-bold mt-2 mb-0">Create your account</h4>
-                <p class="text-muted small">Choose your account type to get started</p>
+                <h4 class="fw-bold mt-2 mb-0">{{ 'auth.register.title'|trans }}</h4>
+                <p class="text-muted small">{{ 'auth.register.subtitle'|trans }}</p>
             </div>
 
-            {# Account type tabs #}
             <ul class="nav nav-pills nav-fill mb-4 bg-light rounded-3 p-1" id="typeTabs">
                 <li class="nav-item">
                     <button class="nav-link rounded-3 fw-semibold {{ type != 'business' ? 'active' : '' }}"
                             id="tab-client" type="button" onclick="switchType('client')">
-                        <i class="bi bi-person me-1"></i>Client
+                        <i class="bi bi-person me-1"></i>{{ 'auth.register.client_tab'|trans }}
                     </button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link rounded-3 fw-semibold {{ type == 'business' ? 'active' : '' }}"
                             id="tab-business" type="button" onclick="switchType('business')">
-                        <i class="bi bi-building me-1"></i>Business
+                        <i class="bi bi-building me-1"></i>{{ 'auth.register.business_tab'|trans }}
                     </button>
                 </li>
             </ul>
@@ -36,9 +35,8 @@
             <form method="post" action="{{ path('register') }}" novalidate id="regForm">
                 <input type="hidden" name="type" id="typeInput" value="{{ type }}">
 
-                {# Personal details #}
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+                    <label class="form-label fw-semibold small">{{ 'auth.register.full_name'|trans }} <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-person text-muted"></i></span>
                         <input type="text" name="name" class="form-control border-start-0 ps-0"
@@ -47,7 +45,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">Email address <span class="text-danger">*</span></label>
+                    <label class="form-label fw-semibold small">{{ 'auth.register.email'|trans }} <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-envelope text-muted"></i></span>
                         <input type="email" name="email" class="form-control border-start-0 ps-0"
@@ -56,45 +54,44 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">Phone</label>
+                    <label class="form-label fw-semibold small">{{ 'auth.register.phone'|trans }}</label>
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-telephone text-muted"></i></span>
                         <input type="tel" name="phone" class="form-control border-start-0 ps-0"
-                               value="{{ app.request.request.get('phone') }}" placeholder="+1 555 000 0000">
+                               value="{{ app.request.request.get('phone') }}" placeholder="+359 88 000 0000">
                     </div>
                 </div>
 
                 <div class="row g-3 mb-4">
                     <div class="col-6">
-                        <label class="form-label fw-semibold small">Password <span class="text-danger">*</span></label>
+                        <label class="form-label fw-semibold small">{{ 'auth.register.password'|trans }} <span class="text-danger">*</span></label>
                         <input type="password" name="password" class="form-control" required
-                               placeholder="Min. 8 characters" autocomplete="new-password">
+                               placeholder="{{ 'common.min_8_chars'|trans }}" autocomplete="new-password">
                     </div>
                     <div class="col-6">
-                        <label class="form-label fw-semibold small">Confirm Password <span class="text-danger">*</span></label>
+                        <label class="form-label fw-semibold small">{{ 'auth.register.confirm_password'|trans }} <span class="text-danger">*</span></label>
                         <input type="password" name="confirm_password" class="form-control" required
-                               placeholder="Repeat password" autocomplete="new-password">
+                               placeholder="{{ 'auth.register.repeat_password'|trans }}" autocomplete="new-password">
                     </div>
                 </div>
 
-                {# Business-only fields #}
                 <div id="businessFields" class="{{ type != 'business' ? 'd-none' : '' }}">
                     <hr class="mb-4">
-                    <p class="fw-semibold small text-muted text-uppercase letter-spacing mb-3">
-                        <i class="bi bi-building me-1"></i>Organization Details
+                    <p class="fw-semibold small text-muted text-uppercase mb-3">
+                        <i class="bi bi-building me-1"></i>{{ 'auth.register.org_section'|trans }}
                     </p>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold small">Organization Name <span class="text-danger">*</span></label>
+                        <label class="form-label fw-semibold small">{{ 'auth.register.org_name'|trans }} <span class="text-danger">*</span></label>
                         <input type="text" name="org_name" class="form-control"
                                value="{{ app.request.request.get('org_name') }}" placeholder="Acme Barbershop">
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-6">
-                            <label class="form-label fw-semibold small">Category</label>
+                            <label class="form-label fw-semibold small">{{ 'auth.register.org_category'|trans }}</label>
                             <select name="org_category" class="form-select">
-                                <option value="">— select —</option>
+                                <option value="">{{ 'common.select'|trans }}</option>
                                 {% for cat in ['Barbershop', 'Beauty Salon', 'Dental', 'Medical', 'Fitness', 'Spa', 'Legal', 'Consulting', 'Other'] %}
                                     <option value="{{ cat }}"
                                         {{ app.request.request.get('org_category') == cat ? 'selected' : '' }}>
@@ -104,40 +101,59 @@
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-semibold small">Organization Phone</label>
+                            <label class="form-label fw-semibold small">{{ 'auth.register.org_phone'|trans }}</label>
                             <input type="tel" name="org_phone" class="form-control"
-                                   value="{{ app.request.request.get('org_phone') }}" placeholder="+1 555 000 0000">
+                                   value="{{ app.request.request.get('org_phone') }}" placeholder="+359 2 000 0000">
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold small">Organization Email</label>
+                        <label class="form-label fw-semibold small">{{ 'auth.register.org_email'|trans }}</label>
                         <input type="email" name="org_email" class="form-control"
                                value="{{ app.request.request.get('org_email') }}" placeholder="contact@yourbusiness.com">
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold small">Address</label>
+                        <label class="form-label fw-semibold small">{{ 'auth.register.org_address'|trans }}</label>
                         <input type="text" name="org_address" class="form-control"
-                               value="{{ app.request.request.get('org_address') }}" placeholder="123 Main St, City">
+                               value="{{ app.request.request.get('org_address') }}" placeholder="ул. Витоша 1">
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">{{ 'common.city'|trans }}</label>
+                            <input type="text" name="org_city" class="form-control"
+                                   value="{{ app.request.request.get('org_city') }}" placeholder="София">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">{{ 'common.zip'|trans }}</label>
+                            <input type="text" name="org_zip" class="form-control"
+                                   value="{{ app.request.request.get('org_zip') }}" placeholder="1000">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">{{ 'common.country'|trans }}</label>
+                        <input type="text" name="org_country" class="form-control"
+                               value="{{ app.request.request.get('org_country') }}" placeholder="България">
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold small">Description</label>
+                        <label class="form-label fw-semibold small">{{ 'auth.register.org_description'|trans }}</label>
                         <textarea name="org_description" class="form-control" rows="2"
-                                  placeholder="Tell clients what you offer...">{{ app.request.request.get('org_description') }}</textarea>
+                                  placeholder="{{ 'auth.register.org_description_placeholder'|trans }}">{{ app.request.request.get('org_description') }}</textarea>
                     </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
-                    <i class="bi bi-person-check me-1"></i>Create Account
+                    <i class="bi bi-person-check me-1"></i>{{ 'auth.register.submit'|trans }}
                 </button>
             </form>
 
             <hr class="my-4">
             <p class="text-center text-muted small mb-0">
-                Already have an account?
-                <a href="{{ path('login') }}" class="fw-semibold text-decoration-none" style="color:#6366f1">Sign in</a>
+                {{ 'auth.register.have_account'|trans }}
+                <a href="{{ path('login') }}" class="fw-semibold text-decoration-none" style="color:#6366f1">{{ 'auth.register.sign_in'|trans }}</a>
             </p>
         </div>
     </div>

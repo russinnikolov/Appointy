@@ -1,4 +1,4 @@
-# Appointy
+# Grafira
 
 A web application for booking appointments between clients and local businesses, built with Symfony 7, MySQL, and Bootstrap 5.
 

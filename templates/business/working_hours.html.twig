@@ -1,0 +1,103 @@
+{% extends 'base.html.twig' %}
+{% from 'macros.html.twig' import time_select %}
+{% block title %}{{ 'hours.title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold mb-0">{{ 'hours.title'|trans }}</h4>
+                <p class="text-muted small mb-0">{{ organization.name }}</p>
+            </div>
+            <a href="{{ path('business_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>{{ 'hours.back'|trans }}
+            </a>
+        </div>
+
+        <div class="card p-4">
+            <form method="post" novalidate>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:130px">{{ 'common.date'|trans }}</th>
+                                <th style="width:80px" class="text-center">{{ 'hours.closed'|trans }}</th>
+                                <th>{{ 'hours.open'|trans }}</th>
+                                <th>{{ 'hours.close'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] %}
+                                {% set cfg = hours[day] ?? {enabled: false, open: '09:00', close: '18:00'} %}
+                                <tr>
+                                    <td class="fw-semibold text-capitalize">{{ day }}</td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-flex justify-content-center mb-0">
+                                            <input class="form-check-input" type="checkbox"
+                                                   name="enabled_{{ day }}" value="1"
+                                                   id="en_{{ day }}"
+                                                   onchange="toggleRow('{{ day }}', this.checked)"
+                                                   {{ cfg.enabled ? 'checked' : '' }}>
+                                        </div>
+                                    </td>
+                                    <td id="row_{{ day }}" class="{{ not cfg.enabled ? 'opacity-50' : '' }}">
+                                        <select name="open_{{ day }}" class="form-select form-select-sm"
+                                                style="max-width:110px" {{ not cfg.enabled ? 'disabled' : '' }}>
+                                            {% for h in range(0, 23) %}
+                                                {% for m in ['00', '15', '30', '45'] %}
+                                                    {% set val = '%02d'|format(h) ~ ':' ~ m %}
+                                                    <option value="{{ val }}" {{ cfg.open == val ? 'selected' : '' }}>{{ val }}</option>
+                                                {% endfor %}
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td id="row2_{{ day }}" class="{{ not cfg.enabled ? 'opacity-50' : '' }}">
+                                        <select name="close_{{ day }}" class="form-select form-select-sm"
+                                                style="max-width:110px" {{ not cfg.enabled ? 'disabled' : '' }}>
+                                            {% for h in range(0, 23) %}
+                                                {% for m in ['00', '15', '30', '45'] %}
+                                                    {% set val = '%02d'|format(h) ~ ':' ~ m %}
+                                                    <option value="{{ val }}" {{ cfg.close == val ? 'selected' : '' }}>{{ val }}</option>
+                                                {% endfor %}
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <hr class="mt-4 mb-3">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <label class="fw-semibold small mb-0">{{ 'hours.time_step'|trans }}</label>
+                        <select name="time_step" class="form-select form-select-sm" style="width:auto">
+                            <option value="15" {{ organization.timeStep == 15 ? 'selected' : '' }}>{{ 'hours.step.15'|trans }}</option>
+                            <option value="30" {{ organization.timeStep == 30 ? 'selected' : '' }}>{{ 'hours.step.30'|trans }}</option>
+                            <option value="60" {{ organization.timeStep == 60 ? 'selected' : '' }}>{{ 'hours.step.60'|trans }}</option>
+                            <option value="120" {{ organization.timeStep == 120 ? 'selected' : '' }}>{{ 'hours.step.120'|trans }}</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                        <i class="bi bi-floppy me-1"></i>{{ 'hours.save'|trans }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleRow(day, enabled) {
+    ['row_' + day, 'row2_' + day].forEach(id => {
+        const cell = document.getElementById(id);
+        cell.classList.toggle('opacity-50', !enabled);
+        cell.querySelector('select').disabled = !enabled;
+    });
+}
+</script>
+{% endblock %}

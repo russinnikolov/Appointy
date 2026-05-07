@@ -32,8 +32,10 @@ security:
                 lifetime: 604800
 
     access_control:
+        - { path: ^/api,      roles: PUBLIC_ACCESS }
         - { path: ^/orgs,     roles: PUBLIC_ACCESS }
         - { path: ^/business, roles: ROLE_BUSINESS }
+        - { path: ^/employee, roles: ROLE_EMPLOYEE }
         - { path: ^/client,   roles: ROLE_CLIENT }
 
 when@test:

@@ -1,38 +1,38 @@
 {% extends 'base.html.twig' %}
-{% block title %}Booking Confirmed — Appointy{% endblock %}
+{% block title %}{{ 'public.booking_confirmed.title'|trans }} — Grafira{% endblock %}
 
 {% block body %}
 <div class="row justify-content-center">
     <div class="col-sm-10 col-md-7 col-lg-5">
         <div class="card p-4 p-md-5 text-center">
             <div style="font-size:3.5rem; color:#059669"><i class="bi bi-check-circle-fill"></i></div>
-            <h4 class="fw-bold mt-3 mb-1">You're booked!</h4>
-            <p class="text-muted mb-4">Your appointment request has been submitted. The business will contact you to confirm.</p>
+            <h4 class="fw-bold mt-3 mb-1">{{ 'public.booking_confirmed.booked'|trans }}</h4>
+            <p class="text-muted mb-4">{{ 'public.booking_confirmed.text'|trans }}</p>
 
             <div class="bg-light rounded-3 p-3 text-start mb-4">
                 <div class="row g-2 small">
-                    <div class="col-5 text-muted fw-semibold">Organization</div>
+                    <div class="col-5 text-muted fw-semibold">{{ 'public.booking_confirmed.org'|trans }}</div>
                     <div class="col-7">{{ organization.name }}</div>
 
-                    <div class="col-5 text-muted fw-semibold">Employee</div>
+                    <div class="col-5 text-muted fw-semibold">{{ 'public.booking_confirmed.employee'|trans }}</div>
                     <div class="col-7">{{ employee.name }}{% if employee.role %} ({{ employee.role }}){% endif %}</div>
 
-                    <div class="col-5 text-muted fw-semibold">Date</div>
+                    <div class="col-5 text-muted fw-semibold">{{ 'common.date'|trans }}</div>
                     <div class="col-7">{{ appointment.appointmentDate|date('D, M j Y') }}</div>
 
-                    <div class="col-5 text-muted fw-semibold">Time</div>
+                    <div class="col-5 text-muted fw-semibold">{{ 'public.booking_confirmed.time'|trans }}</div>
                     <div class="col-7">{{ appointment.appointmentTime|date('H:i') }}</div>
 
-                    <div class="col-5 text-muted fw-semibold">Your Name</div>
+                    <div class="col-5 text-muted fw-semibold">{{ 'public.booking_confirmed.your_name'|trans }}</div>
                     <div class="col-7">{{ appointment.guestName }}</div>
 
-                    <div class="col-5 text-muted fw-semibold">Phone</div>
+                    <div class="col-5 text-muted fw-semibold">{{ 'public.booking_confirmed.phone'|trans }}</div>
                     <div class="col-7">{{ appointment.guestPhone }}</div>
                 </div>
             </div>
 
             <a href="{{ path('public_organizations') }}" class="btn btn-outline-primary">
-                <i class="bi bi-building me-1"></i>Browse More Organizations
+                <i class="bi bi-building me-1"></i>{{ 'public.booking_confirmed.browse'|trans }}
             </a>
         </div>
     </div>

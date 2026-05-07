@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Appointy — Book Appointments Online{% endblock %}
+{% block title %}Grafira — {{ 'home.hero.title'|trans }} {{ 'home.hero.title_accent'|trans }}{% endblock %}
 
 {% block body %}
 <div class="py-5 text-center">
@@ -7,18 +7,17 @@
         <i class="bi bi-calendar-check-fill"></i>
     </div>
     <h1 class="display-5 fw-bold mb-3">
-        Book appointments <span style="color:#6366f1">effortlessly</span>
+        {{ 'home.hero.title'|trans }} <span style="color:#6366f1">{{ 'home.hero.title_accent'|trans }}</span>
     </h1>
     <p class="lead text-muted mb-5 mx-auto" style="max-width:520px">
-        Connect with local organizations and schedule your next appointment in seconds.
-        No phone calls, no waiting.
+        {{ 'home.hero.subtitle'|trans }}
     </p>
     <div class="d-flex justify-content-center gap-3 flex-wrap">
         <a href="{{ path('register', {type: 'client'}) }}" class="btn btn-primary btn-lg px-4">
-            <i class="bi bi-person-plus me-2"></i>Get Started as Client
+            <i class="bi bi-person-plus me-2"></i>{{ 'home.hero.client_btn'|trans }}
         </a>
         <a href="{{ path('register', {type: 'business'}) }}" class="btn btn-outline-primary btn-lg px-4">
-            <i class="bi bi-building me-2"></i>Register Your Organization
+            <i class="bi bi-building me-2"></i>{{ 'home.hero.business_btn'|trans }}
         </a>
     </div>
 </div>
@@ -27,28 +26,28 @@
     <div class="col-md-4">
         <div class="card p-4 h-100 text-center">
             <div class="mb-3" style="font-size:2rem; color:#6366f1"><i class="bi bi-search"></i></div>
-            <h5 class="fw-semibold">Find Organizations</h5>
-            <p class="text-muted small mb-0">Browse a growing list of businesses offering appointment bookings.</p>
+            <h5 class="fw-semibold">{{ 'home.feature.find'|trans }}</h5>
+            <p class="text-muted small mb-0">{{ 'home.feature.find_text'|trans }}</p>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card p-4 h-100 text-center">
             <div class="mb-3" style="font-size:2rem; color:#6366f1"><i class="bi bi-calendar-plus"></i></div>
-            <h5 class="fw-semibold">Book Instantly</h5>
-            <p class="text-muted small mb-0">Pick a date and time that works for you — confirmed in real time.</p>
+            <h5 class="fw-semibold">{{ 'home.feature.book'|trans }}</h5>
+            <p class="text-muted small mb-0">{{ 'home.feature.book_text'|trans }}</p>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card p-4 h-100 text-center">
             <div class="mb-3" style="font-size:2rem; color:#6366f1"><i class="bi bi-bell"></i></div>
-            <h5 class="fw-semibold">Stay Updated</h5>
-            <p class="text-muted small mb-0">Track every appointment status from your personal dashboard.</p>
+            <h5 class="fw-semibold">{{ 'home.feature.track'|trans }}</h5>
+            <p class="text-muted small mb-0">{{ 'home.feature.track_text'|trans }}</p>
         </div>
     </div>
 </div>
 
 <p class="text-center text-muted small mt-5">
-    Already have an account?
-    <a href="{{ path('login') }}" class="text-decoration-none fw-semibold" style="color:#6366f1">Log in</a>
+    {{ 'home.have_account'|trans }}
+    <a href="{{ path('login') }}" class="text-decoration-none fw-semibold" style="color:#6366f1">{{ 'nav.login'|trans }}</a>
 </p>
 {% endblock %}

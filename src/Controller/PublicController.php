@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Appointment;
+use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,6 +51,7 @@ class PublicController extends AbstractController
         Request $request,
         OrganizationRepository $orgRepo,
         EmployeeRepository $empRepo,
+        AppointmentRepository $apptRepo,
         EntityManagerInterface $em
     ): Response {
         $org      = $orgRepo->find($orgId);
@@ -68,14 +70,22 @@ class PublicController extends AbstractController
             $time       = $request->request->get('time', '');
             $notes      = trim($request->request->get('notes', ''));
 
+            $step  = $org->getTimeStep();
+            $allowedMinutes = [];
+            for ($m = 0; $m < 60; $m += $step) {
+                $allowedMinutes[] = str_pad((string) $m, 2, '0', STR_PAD_LEFT);
+            }
+
             if (!$guestName || !$guestPhone) {
                 $error = 'Please provide your name and phone number.';
             } elseif (!$date || !$time) {
                 $error = 'Please select a date and time.';
-            } elseif (!in_array(substr($time, 3, 2), ['00', '15', '30', '45'], true)) {
-                $error = 'Please select a valid time (on :00, :15, :30 or :45).';
+            } elseif (!in_array(substr($time, 3, 2), $allowedMinutes, true)) {
+                $error = 'Please select a valid time slot.';
             } elseif (new \DateTime($date) < new \DateTime('today')) {
                 $error = 'Appointment date cannot be in the past.';
+            } elseif ($apptRepo->findConflict($employee, new \DateTime($date), new \DateTime($time))) {
+                $error = $employee->getName() . ' is already booked at that time. Please choose a different time.';
             } else {
                 $appt = new Appointment();
                 $appt->setOrganization($org)
@@ -90,9 +100,9 @@ class PublicController extends AbstractController
                 $em->flush();
 
                 return $this->render('public/booking_confirmed.html.twig', [
-                    'appointment' => $appt,
+                    'appointment'  => $appt,
                     'organization' => $org,
-                    'employee'    => $employee,
+                    'employee'     => $employee,
                 ]);
             }
         }

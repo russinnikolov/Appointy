@@ -1,40 +1,53 @@
 {% extends 'base.html.twig' %}
-{% block title %}Browse Organizations — Appointy{% endblock %}
+{% block title %}{{ 'public.orgs.title'|trans }} — Grafira{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+    #orgMap { height: 340px; border-radius: 12px; border: 1px solid #e5e7eb; }
+    .org-card { transition: .15s; cursor: pointer; }
+    .org-card:hover { box-shadow: 0 4px 20px rgba(99,102,241,.15) !important; }
+    .org-card.highlighted { box-shadow: 0 0 0 2px #6366f1, 0 4px 20px rgba(99,102,241,.2) !important; }
+</style>
+{% endblock %}
 
 {% block body %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="fw-bold mb-0">Browse Organizations</h4>
-        <p class="text-muted small mb-0">Find a business and book your appointment</p>
+        <h4 class="fw-bold mb-0">{{ 'public.orgs.title'|trans }}</h4>
+        <p class="text-muted small mb-0">{{ 'public.orgs.subtitle'|trans }}</p>
     </div>
 </div>
 
-<form method="get" class="mb-4">
+<form method="get" class="mb-4" id="searchForm">
     <div class="input-group">
         <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-        <input type="text" name="q" class="form-control border-start-0 ps-0"
-               value="{{ search }}" placeholder="Search by name, category or description…" autofocus>
-        <button type="submit" class="btn btn-primary px-4">Search</button>
+        <input type="text" name="q" id="searchInput" class="form-control border-start-0 ps-0"
+               value="{{ search }}" placeholder="{{ 'org.search_placeholder'|trans }}" autofocus>
+        <button type="submit" class="btn btn-primary px-4">{{ 'common.search'|trans }}</button>
         {% if search %}
-            <a href="{{ path('public_organizations') }}" class="btn btn-outline-secondary">Clear</a>
+            <a href="{{ path('public_organizations') }}" class="btn btn-outline-secondary">{{ 'common.clear'|trans }}</a>
         {% endif %}
     </div>
 </form>
 
+{% set mappable = organizations|filter(o => o.latitude is not null and o.longitude is not null) %}
+{% if mappable is not empty %}
+<div id="orgMap" class="mb-4"></div>
+{% endif %}
+
 {% if organizations is empty %}
     <div class="card p-5 text-center">
         <div style="font-size:3rem; color:#d1d5db"><i class="bi bi-building-slash"></i></div>
-        <h5 class="fw-semibold mt-3 mb-1">No organizations found</h5>
-        <p class="text-muted small">Try a different search term.</p>
+        <h5 class="fw-semibold mt-3 mb-1">{{ 'org.no_results'|trans }}</h5>
+        <p class="text-muted small">{{ 'org.no_results_text'|trans }}</p>
     </div>
 {% else %}
-    <div class="row g-3">
+    <div class="row g-3" id="orgList">
         {% for org in organizations %}
-            <div class="col-md-6 col-lg-4">
+            <div class="col-md-6 col-lg-4 org-item" id="org-{{ org.id }}">
                 <a href="{{ path('public_organization', {id: org.id}) }}" class="text-decoration-none">
-                    <div class="card h-100 p-3 h-100" style="transition:.15s;cursor:pointer"
-                         onmouseover="this.style.boxShadow='0 4px 20px rgba(99,102,241,.15)'"
-                         onmouseout="this.style.boxShadow=''">
+                    <div class="card h-100 p-3 org-card">
                         <div class="d-flex align-items-start justify-content-between mb-2">
                             <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                                  style="width:42px;height:42px;background:#ede9fe;color:#6366f1;font-size:1.2rem">
@@ -45,7 +58,11 @@
                             {% endif %}
                         </div>
                         <h6 class="fw-bold mb-1 text-dark">{{ org.name }}</h6>
-                        {% if org.address %}
+                        {% if org.fullAddress %}
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-geo-alt me-1"></i>{{ org.fullAddress }}
+                            </p>
+                        {% elseif org.address %}
                             <p class="text-muted small mb-1">
                                 <i class="bi bi-geo-alt me-1"></i>{{ org.address }}
                             </p>
@@ -59,7 +76,7 @@
                         <div class="mt-auto pt-2">
                             <span class="text-primary small fw-semibold">
                                 <i class="bi bi-people me-1"></i>
-                                {{ org.employees|filter(e => e.isActive)|length }} employee(s)
+                                {{ org.employees|filter(e => e.isActive)|length }} {{ 'org.employees_count'|trans }}
                             </span>
                         </div>
                     </div>
@@ -67,5 +84,71 @@
             </div>
         {% endfor %}
     </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% set mappable = organizations|filter(o => o.latitude is not null and o.longitude is not null) %}
+{% if mappable is not empty %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const orgs = [
+    {% for org in mappable %}
+    {
+        id:   {{ org.id }},
+        name: {{ org.name|json_encode|raw }},
+        addr: {{ (org.fullAddress ?: org.address ?: '')|json_encode|raw }},
+        lat:  {{ org.latitude }},
+        lng:  {{ org.longitude }},
+        url:  {{ path('public_organization', {id: org.id})|json_encode|raw }},
+        viewBook: {{ 'public.map.view_book'|trans|json_encode|raw }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const map = L.map('orgMap');
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+const icon = L.divIcon({
+    className: '',
+    html: '<div style="width:32px;height:32px;background:#6366f1;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -34]
+});
+
+const markers = [];
+const bounds  = [];
+
+orgs.forEach(org => {
+    const m = L.marker([org.lat, org.lng], { icon })
+        .addTo(map)
+        .bindPopup(`
+            <strong>${org.name}</strong><br>
+            ${org.addr ? `<small class="text-muted">${org.addr}</small><br>` : ''}
+            <a href="${org.url}" class="btn btn-primary btn-sm mt-2 d-block text-center">${org.viewBook}</a>
+        `, { minWidth: 160 });
+
+    m.on('click', () => {
+        document.querySelectorAll('.org-card').forEach(c => c.classList.remove('highlighted'));
+        const card = document.getElementById('org-' + org.id);
+        if (card) {
+            card.querySelector('.org-card').classList.add('highlighted');
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    });
+
+    markers.push({ id: org.id, marker: m });
+    bounds.push([org.lat, org.lng]);
+});
+
+if (bounds.length === 1) {
+    map.setView(bounds[0], 14);
+} else {
+    map.fitBounds(bounds, { padding: [32, 32] });
+}
+</script>
 {% endif %}
 {% endblock %}

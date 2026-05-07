@@ -1,0 +1,179 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'blocked.title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">{{ 'blocked.title'|trans }}</h4>
+        <p class="text-muted small mb-0">{{ 'blocked.subtitle'|trans }}</p>
+    </div>
+    <a href="{{ path('business_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>{{ 'nav.dashboard'|trans }}
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle me-1 text-primary"></i>{{ 'blocked.add_title'|trans }}</h6>
+
+            {% if error %}
+                <div class="alert alert-danger py-2 small mb-3">
+                    <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'common.date'|trans }} <span class="text-danger">*</span></label>
+                    <input type="date" name="date" id="blockDate" class="form-control"
+                           min="{{ 'now'|date('Y-m-d') }}"
+                           value="{{ app.request.isMethod('POST') ? app.request.request.get('date') : '' }}"
+                           onchange="rebuildTimes()" required>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'common.from'|trans }} <span class="text-danger">*</span></label>
+                        <select name="start_time" class="form-select" id="startTime" required>
+                            <option value="">{{ 'blocked.pick_date'|trans }}</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'common.until'|trans }} <span class="text-danger">*</span></label>
+                        <select name="end_time" class="form-select" id="endTime" required>
+                            <option value="">{{ 'blocked.pick_date'|trans }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'blocked.applies_to'|trans }}</label>
+                    <select name="employee_id" class="form-select">
+                        <option value="">{{ 'blocked.all_employees'|trans }}</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}"
+                                {{ app.request.request.get('employee_id') == emp.id ? 'selected' : '' }}>
+                                {{ emp.name }}{% if emp.role %} ({{ emp.role }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">{{ 'common.reason'|trans }} <span class="text-muted">({{ 'common.optional'|trans }})</span></label>
+                    <input type="text" name="label" class="form-control" placeholder="{{ 'blocked.reason_placeholder'|trans }}"
+                           value="{{ app.request.isMethod('POST') ? app.request.request.get('label') : '' }}">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                    <i class="bi bi-slash-circle me-1"></i>{{ 'blocked.submit'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        {% if blocks is empty %}
+            <div class="card p-5 text-center">
+                <div style="font-size:3rem; color:#d1d5db"><i class="bi bi-calendar-check"></i></div>
+                <h5 class="fw-semibold mt-3 mb-1">{{ 'blocked.no_blocks'|trans }}</h5>
+                <p class="text-muted small">{{ 'blocked.no_blocks_text'|trans }}</p>
+            </div>
+        {% else %}
+            <div class="d-flex flex-column gap-2">
+                {% for block in blocks %}
+                    <div class="card p-3">
+                        <div class="d-flex align-items-start justify-content-between gap-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                     style="width:44px;height:44px;background:#fee2e2;color:#dc2626;font-size:1.1rem">
+                                    <i class="bi bi-slash-circle"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold small">
+                                        {{ block.date|date('D, M j Y') }}
+                                        &nbsp;·&nbsp;
+                                        <span style="color:#6366f1">{{ block.startTime|date('H:i') }} – {{ block.endTime|date('H:i') }}</span>
+                                    </div>
+                                    <div class="text-muted small mt-1">
+                                        <i class="bi bi-people me-1"></i>
+                                        {% if block.employee %}
+                                            {{ block.employee.name }}{% if block.employee.role %} ({{ block.employee.role }}){% endif %}
+                                        {% else %}
+                                            {{ 'blocked.all_employees'|trans }}
+                                        {% endif %}
+                                    </div>
+                                    {% if block.label %}
+                                        <div class="text-muted small">
+                                            <i class="bi bi-chat-left-text me-1"></i>{{ block.label }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <form method="post" action="{{ path('business_blocked_delete', {id: block.id}) }}"
+                                  onsubmit="return confirm('{{ 'blocked.confirm_delete'|trans }}')">
+                                <button type="submit" class="btn btn-outline-danger btn-sm flex-shrink-0">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const workingHours  = {{ organization.workingHours|json_encode|raw }};
+const timeStep      = {{ organization.timeStep }};
+const dayNames      = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const savedStart    = {{ app.request.isMethod('POST') ? (app.request.request.get('start_time')|json_encode|raw) : 'null' }};
+const savedEnd      = {{ app.request.isMethod('POST') ? (app.request.request.get('end_time')|json_encode|raw)   : 'null' }};
+const MSG_PICK_DATE  = {{ 'blocked.pick_date'|trans|json_encode|raw }};
+const MSG_CLOSED_DAY = {{ 'blocked.closed_day'|trans|json_encode|raw }};
+
+const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+
+function rebuildTimes() {
+    const dateVal  = document.getElementById('blockDate').value;
+    const startSel = document.getElementById('startTime');
+    const endSel   = document.getElementById('endTime');
+
+    startSel.innerHTML = '';
+    endSel.innerHTML   = '';
+
+    if (!dateVal) {
+        startSel.innerHTML = `<option value="">${MSG_PICK_DATE}</option>`;
+        endSel.innerHTML   = `<option value="">${MSG_PICK_DATE}</option>`;
+        return;
+    }
+
+    const dow = new Date(dateVal + 'T00:00:00').getDay();
+    const cfg = workingHours[dayNames[dow]];
+
+    if (!cfg || !cfg.enabled) {
+        startSel.innerHTML = `<option value="">${MSG_CLOSED_DAY}</option>`;
+        endSel.innerHTML   = `<option value="">${MSG_CLOSED_DAY}</option>`;
+        return;
+    }
+
+    const open  = toMin(cfg.open);
+    const close = toMin(cfg.close);
+
+    for (let t = open; t < close; t += timeStep) {
+        const val = toStr(t);
+        startSel.appendChild(new Option(val, val, false, val === savedStart));
+        endSel.appendChild(new Option(val, val, false, val === savedEnd));
+    }
+    const closeStr = toStr(close);
+    endSel.appendChild(new Option(closeStr, closeStr, false, closeStr === savedEnd));
+}
+
+rebuildTimes();
+</script>
+{% endblock %}

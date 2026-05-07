@@ -18,6 +18,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     public const TYPE_CLIENT   = 'client';
     public const TYPE_BUSINESS = 'business';
+    public const TYPE_EMPLOYEE = 'employee';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -36,6 +37,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $phone = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $address = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $city = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $country = null;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $zipCode = null;
+
     #[ORM\Column(length: 10)]
     private string $type = self::TYPE_CLIENT;
 
@@ -45,6 +58,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\OneToMany(mappedBy: 'client', targetEntity: Appointment::class, orphanRemoval: true)]
     private Collection $appointments;
+
+    #[ORM\OneToOne(mappedBy: 'user', targetEntity: Employee::class)]
+    private ?Employee $employee = null;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $mustChangePassword = false;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -79,6 +98,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getPhone(): ?string { return $this->phone; }
     public function setPhone(?string $v): static { $this->phone = $v; return $this; }
 
+    public function getAddress(): ?string { return $this->address; }
+    public function setAddress(?string $v): static { $this->address = $v; return $this; }
+
+    public function getCity(): ?string { return $this->city; }
+    public function setCity(?string $v): static { $this->city = $v; return $this; }
+
+    public function getCountry(): ?string { return $this->country; }
+    public function setCountry(?string $v): static { $this->country = $v; return $this; }
+
+    public function getZipCode(): ?string { return $this->zipCode; }
+    public function setZipCode(?string $v): static { $this->zipCode = $v; return $this; }
+
     public function getType(): string { return $this->type; }
     public function setType(string $v): static { $this->type = $v; return $this; }
 
@@ -94,11 +125,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** @return Collection<int, Appointment> */
     public function getAppointments(): Collection { return $this->appointments; }
 
+    public function getEmployee(): ?Employee { return $this->employee; }
+
+    public function isMustChangePassword(): bool { return $this->mustChangePassword; }
+    public function setMustChangePassword(bool $v): static { $this->mustChangePassword = $v; return $this; }
+
     public function getRoles(): array
     {
-        return $this->type === self::TYPE_BUSINESS
-            ? ['ROLE_BUSINESS']
-            : ['ROLE_CLIENT'];
+        return match($this->type) {
+            self::TYPE_BUSINESS => ['ROLE_BUSINESS'],
+            self::TYPE_EMPLOYEE => ['ROLE_EMPLOYEE'],
+            default             => ['ROLE_CLIENT'],
+        };
     }
 
     public function getUserIdentifier(): string { return $this->email ?? ''; }

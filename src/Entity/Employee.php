@@ -39,6 +39,17 @@ class Employee
     #[ORM\Column]
     private bool $isActive = true;
 
+    #[ORM\Column(type: 'time', nullable: true)]
+    private ?\DateTimeInterface $lunchBreakStart = null;
+
+    #[ORM\Column(type: 'time', nullable: true)]
+    private ?\DateTimeInterface $lunchBreakEnd = null;
+
+    /** The user account that belongs to this employee (for employee login). */
+    #[ORM\OneToOne(inversedBy: 'employee', cascade: ['persist'])]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $user = null;
+
     #[ORM\OneToMany(mappedBy: 'employee', targetEntity: Appointment::class)]
     private Collection $appointments;
 
@@ -56,10 +67,7 @@ class Employee
     }
 
     #[ORM\PreUpdate]
-    public function onPreUpdate(): void
-    {
-        $this->updatedAt = new \DateTimeImmutable();
-    }
+    public function onPreUpdate(): void { $this->updatedAt = new \DateTimeImmutable(); }
 
     public function getId(): ?int { return $this->id; }
 
@@ -84,8 +92,29 @@ class Employee
     public function isActive(): bool { return $this->isActive; }
     public function setIsActive(bool $v): static { $this->isActive = $v; return $this; }
 
+    public function getLunchBreakStart(): ?\DateTimeInterface { return $this->lunchBreakStart; }
+    public function setLunchBreakStart(?\DateTimeInterface $v): static { $this->lunchBreakStart = $v; return $this; }
+
+    public function getLunchBreakEnd(): ?\DateTimeInterface { return $this->lunchBreakEnd; }
+    public function setLunchBreakEnd(?\DateTimeInterface $v): static { $this->lunchBreakEnd = $v; return $this; }
+
+    /** Convenience: returns lunch window as ["HH:MM", "HH:MM"] or null if not set. */
+    public function getLunchBreak(): ?array
+    {
+        if (!$this->lunchBreakStart || !$this->lunchBreakEnd) {
+            return null;
+        }
+        return [
+            $this->lunchBreakStart->format('H:i'),
+            $this->lunchBreakEnd->format('H:i'),
+        ];
+    }
+
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
+
+    public function getUser(): ?User { return $this->user; }
+    public function setUser(?User $v): static { $this->user = $v; return $this; }
 
     /** @return Collection<int, Appointment> */
     public function getAppointments(): Collection { return $this->appointments; }

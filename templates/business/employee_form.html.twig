@@ -1,15 +1,22 @@
 {% extends 'base.html.twig' %}
-{% block title %}Add Employee — {{ organization.name }}{% endblock %}
+{% set editing = employee is defined and employee is not null %}
+{% set lsVal = app.request.isMethod('POST')
+    ? app.request.request.get('lunch_start')
+    : (editing and employee.lunchBreakStart ? employee.lunchBreakStart|date('H:i') : '') %}
+{% set leVal = app.request.isMethod('POST')
+    ? app.request.request.get('lunch_end')
+    : (editing and employee.lunchBreakEnd ? employee.lunchBreakEnd|date('H:i') : '') %}
+{% block title %}{% if editing %}{{ 'employee.form.edit_title'|trans }}{% else %}{{ 'employee.form.add_title'|trans }}{% endif %} — {{ organization.name }}{% endblock %}
 
 {% block body %}
 <div class="row justify-content-center">
-    <div class="col-sm-10 col-md-7 col-lg-6">
+    <div class="col-sm-10 col-md-8 col-lg-7">
         <a href="{{ path('business_employees') }}" class="btn btn-link text-muted ps-0 mb-3 small">
-            <i class="bi bi-arrow-left me-1"></i>Back to employees
+            <i class="bi bi-arrow-left me-1"></i>{{ 'employee.form.back'|trans }}
         </a>
 
         <div class="card p-4 p-md-5">
-            <h5 class="fw-bold mb-1">Add Employee</h5>
+            <h5 class="fw-bold mb-1">{{ editing ? 'employee.form.edit_title'|trans : 'employee.form.add_title'|trans }}</h5>
             <p class="text-muted small mb-4">{{ organization.name }}</p>
 
             {% if error %}
@@ -19,42 +26,181 @@
             {% endif %}
 
             <form method="post" novalidate>
+                <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'employee.form.info_section'|trans }}</p>
+
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control"
-                           value="{{ app.request.request.get('name') }}" required placeholder="Jane Smith">
+                    <label class="form-label fw-semibold small">{{ 'common.name'|trans }} <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required placeholder="Jane Smith"
+                           value="{{ app.request.isMethod('POST') ? app.request.request.get('name') : (editing ? employee.name : '') }}">
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">Role / Title</label>
-                    <input type="text" name="role" class="form-control"
-                           value="{{ app.request.request.get('role') }}" placeholder="Senior Barber, Doctor, Consultant…">
-                </div>
-
-                <div class="row g-3 mb-3">
-                    <div class="col-6">
-                        <label class="form-label fw-semibold small">Phone</label>
-                        <input type="tel" name="phone" class="form-control"
-                               value="{{ app.request.request.get('phone') }}" placeholder="+1 555 000 0000">
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label fw-semibold small">Email</label>
-                        <input type="email" name="email" class="form-control"
-                               value="{{ app.request.request.get('email') }}" placeholder="jane@example.com">
-                    </div>
+                    <label class="form-label fw-semibold small">{{ 'common.role'|trans }}</label>
+                    <input type="text" name="role" class="form-control" placeholder="Senior Barber, Doctor, Consultant…"
+                           value="{{ app.request.isMethod('POST') ? app.request.request.get('role') : (editing ? employee.role : '') }}">
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label fw-semibold small">Bio <span class="text-muted">(optional)</span></label>
-                    <textarea name="bio" class="form-control" rows="3"
-                              placeholder="Short description shown to clients…">{{ app.request.request.get('bio') }}</textarea>
+                    <label class="form-label fw-semibold small">{{ 'common.phone'|trans }}</label>
+                    <input type="tel" name="phone" class="form-control" placeholder="+1 555 000 0000"
+                           value="{{ app.request.isMethod('POST') ? app.request.request.get('phone') : (editing ? employee.phone : '') }}">
                 </div>
 
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">{{ 'common.bio'|trans }} <span class="text-muted">({{ 'common.optional'|trans }})</span></label>
+                    <textarea name="bio" class="form-control" rows="2"
+                              placeholder="{{ 'employee.form.bio_placeholder'|trans }}">{{ app.request.isMethod('POST') ? app.request.request.get('bio') : (editing ? employee.bio : '') }}</textarea>
+                </div>
+
+                <hr class="mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">
+                    <i class="bi bi-cup-hot me-1"></i>{{ 'employee.form.lunch_section'|trans }} <span class="fw-normal">{{ 'employee.form.lunch_note'|trans }}</span>
+                </p>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'employee.form.lunch_start'|trans }}</label>
+                        <select name="lunch_start" class="form-select" id="lunchStart" onchange="syncLunchEnd()">
+                            <option value="">{{ 'common.no_break'|trans }}</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'employee.form.lunch_end'|trans }}</label>
+                        <select name="lunch_end" class="form-select" id="lunchEnd">
+                            <option value="">{{ 'common.no_break'|trans }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <hr class="mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">
+                    <i class="bi bi-person-lock me-1"></i>
+                    {% if editing and employee.user %}
+                        {{ 'employee.form.login_section_existing'|trans }}
+                    {% else %}
+                        {{ 'employee.form.login_section'|trans }} <span class="fw-normal text-muted">({{ 'employee.form.login_note'|trans }})</span>
+                    {% endif %}
+                </p>
+
+                {% if editing and employee.user %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">{{ 'employee.form.current_email'|trans }}</label>
+                        <input type="email" class="form-control bg-light" value="{{ employee.user.email }}" disabled>
+                        <div class="form-text">{{ 'employee.form.email_readonly_note'|trans }}</div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">{{ 'employee.form.new_password'|trans }} <span class="text-muted">{{ 'employee.form.password_keep_hint'|trans }}</span></label>
+                            <input type="password" name="new_password" class="form-control" placeholder="{{ 'common.min_8_chars'|trans }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">{{ 'employee.form.confirm_password'|trans }}</label>
+                            <input type="password" name="confirm_password" class="form-control" placeholder="{{ 'employee.profile.repeat'|trans }}">
+                        </div>
+                    </div>
+                {% elseif editing %}
+                    <div class="alert py-3 small mb-4 d-flex align-items-center justify-content-between gap-3"
+                         style="background:#fef9c3;border:1px solid #fde68a;color:#92400e">
+                        <div>
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            {{ 'employee.form.no_account_warning'|trans }}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-warning fw-semibold flex-shrink-0"
+                                data-bs-toggle="modal" data-bs-target="#createAccountModal">
+                            <i class="bi bi-person-plus me-1"></i>{{ 'employee.form.create_account_btn'|trans }}
+                        </button>
+                    </div>
+                {% else %}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small">{{ 'employee.form.login_email'|trans }} <span class="text-danger">*</span></label>
+                        <input type="email" name="login_email" class="form-control" required
+                               value="{{ app.request.isMethod('POST') ? app.request.request.get('login_email') : '' }}"
+                               placeholder="employee@example.com">
+                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>{{ 'employee.form.email_hint'|trans }}</div>
+                    </div>
+                {% endif %}
+
                 <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
-                    <i class="bi bi-person-plus me-1"></i>Add Employee
+                    <i class="bi bi-{{ editing ? 'check-lg' : 'person-plus' }} me-1"></i>
+                    {{ editing ? 'employee.form.save'|trans : 'employee.form.add_btn'|trans }}
                 </button>
             </form>
         </div>
     </div>
 </div>
+
+{% if editing and not employee.user %}
+<div class="modal fade" id="createAccountModal" tabindex="-1" aria-labelledby="createAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="createAccountModalLabel">
+                    <i class="bi bi-person-plus me-2 text-primary"></i>{{ 'employee.modal.create_title'|trans }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{{ path('business_employee_create_account', {id: employee.id}) }}" novalidate>
+                <div class="modal-body pt-3">
+                    <p class="text-muted small mb-3">{{ 'employee.modal.create_desc'|trans }}</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">{{ 'employee.modal.email'|trans }} <span class="text-danger">*</span></label>
+                        <input type="email" name="login_email" class="form-control" required
+                               placeholder="employee@example.com" autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">{{ 'common.cancel'|trans }}</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-semibold">
+                        <i class="bi bi-send me-1"></i>{{ 'employee.modal.submit'|trans }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const workingHours = {{ organization.workingHours|json_encode|raw }};
+const timeStep     = {{ organization.timeStep }};
+const savedStart   = {{ lsVal ? ('"'~lsVal~'"')|raw : 'null' }};
+const savedEnd     = {{ leVal ? ('"'~leVal~'"')|raw : 'null' }};
+
+(function buildSelects() {
+    const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+    const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+
+    let minOpen = Infinity, maxClose = -Infinity;
+    Object.values(workingHours).forEach(cfg => {
+        if (!cfg || !cfg.enabled) return;
+        const o = toMin(cfg.open), c = toMin(cfg.close);
+        if (o < minOpen)  minOpen  = o;
+        if (c > maxClose) maxClose = c;
+    });
+    if (minOpen === Infinity) return;
+
+    const startSel = document.getElementById('lunchStart');
+    const endSel   = document.getElementById('lunchEnd');
+
+    for (let t = minOpen; t < maxClose; t += timeStep) {
+        const val = toStr(t);
+        startSel.appendChild(new Option(val, val, false, val === savedStart));
+        endSel.appendChild(new Option(val, val, false, val === savedEnd));
+    }
+    const closeStr = toStr(maxClose);
+    endSel.appendChild(new Option(closeStr, closeStr, false, closeStr === savedEnd));
+})();
+
+function syncLunchEnd() {
+    const startSel = document.getElementById('lunchStart');
+    const endSel   = document.getElementById('lunchEnd');
+    if (!startSel.value || endSel.value) return;
+    const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+    const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+    const endVal = toStr(toMin(startSel.value) + 60);
+    [...endSel.options].forEach(o => { if (o.value === endVal) o.selected = true; });
+}
+</script>
 {% endblock %}

@@ -27,6 +27,9 @@ class HomeController extends AbstractController
         if ($this->isGranted('ROLE_BUSINESS')) {
             return $this->redirectToRoute('business_dashboard');
         }
+        if ($this->isGranted('ROLE_EMPLOYEE')) {
+            return $this->redirectToRoute('employee_dashboard');
+        }
         return $this->redirectToRoute('client_dashboard');
     }
 }

@@ -12,6 +12,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class Organization
 {
+    public const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -29,11 +31,32 @@ class Organization
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $address = null;
 
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $city = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $country = null;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $zipCode = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $latitude = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $longitude = null;
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
 
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $category = null;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $workingHours = null;
+
+    #[ORM\Column(type: 'integer', options: ['default' => 15])]
+    private int $timeStep = 15;
 
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: User::class)]
     private Collection $users;
@@ -44,6 +67,9 @@ class Organization
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: Appointment::class, orphanRemoval: true)]
     private Collection $appointments;
 
+    #[ORM\OneToMany(mappedBy: 'organization', targetEntity: \App\Entity\BlockedPeriod::class, orphanRemoval: true)]
+    private Collection $blockedPeriods;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -52,18 +78,46 @@ class Organization
 
     public function __construct()
     {
-        $this->users        = new ArrayCollection();
-        $this->employees    = new ArrayCollection();
-        $this->appointments = new ArrayCollection();
+        $this->workingHours   = self::defaultWorkingHours();
+        $this->users          = new ArrayCollection();
+        $this->employees      = new ArrayCollection();
+        $this->appointments   = new ArrayCollection();
+        $this->blockedPeriods = new ArrayCollection();
         $this->createdAt    = new \DateTimeImmutable();
         $this->updatedAt    = new \DateTimeImmutable();
     }
 
-    #[ORM\PreUpdate]
-    public function onPreUpdate(): void
+    public static function defaultWorkingHours(): array
     {
-        $this->updatedAt = new \DateTimeImmutable();
+        return [
+            'monday'    => ['enabled' => true,  'open' => '09:00', 'close' => '18:00'],
+            'tuesday'   => ['enabled' => true,  'open' => '09:00', 'close' => '18:00'],
+            'wednesday' => ['enabled' => true,  'open' => '09:00', 'close' => '18:00'],
+            'thursday'  => ['enabled' => true,  'open' => '09:00', 'close' => '18:00'],
+            'friday'    => ['enabled' => true,  'open' => '09:00', 'close' => '17:00'],
+            'saturday'  => ['enabled' => false, 'open' => '10:00', 'close' => '14:00'],
+            'sunday'    => ['enabled' => false, 'open' => '10:00', 'close' => '14:00'],
+        ];
     }
+
+    /** Returns array of PHP day-of-week numbers (0=Sun…6=Sat) that are disabled. */
+    public function getDisabledWeekdays(): array
+    {
+        $phpDayMap = [
+            'sunday' => 0, 'monday' => 1, 'tuesday' => 2, 'wednesday' => 3,
+            'thursday' => 4, 'friday' => 5, 'saturday' => 6,
+        ];
+        $disabled = [];
+        foreach ($this->getWorkingHours() as $day => $cfg) {
+            if (empty($cfg['enabled'])) {
+                $disabled[] = $phpDayMap[$day];
+            }
+        }
+        return $disabled;
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void { $this->updatedAt = new \DateTimeImmutable(); }
 
     public function getId(): ?int { return $this->id; }
 
@@ -79,11 +133,37 @@ class Organization
     public function getAddress(): ?string { return $this->address; }
     public function setAddress(?string $v): static { $this->address = $v; return $this; }
 
+    public function getCity(): ?string { return $this->city; }
+    public function setCity(?string $v): static { $this->city = $v; return $this; }
+
+    public function getCountry(): ?string { return $this->country; }
+    public function setCountry(?string $v): static { $this->country = $v; return $this; }
+
+    public function getZipCode(): ?string { return $this->zipCode; }
+    public function setZipCode(?string $v): static { $this->zipCode = $v; return $this; }
+
+    public function getLatitude(): ?float { return $this->latitude; }
+    public function setLatitude(?float $v): static { $this->latitude = $v; return $this; }
+
+    public function getLongitude(): ?float { return $this->longitude; }
+    public function setLongitude(?float $v): static { $this->longitude = $v; return $this; }
+
+    public function getFullAddress(): string
+    {
+        return implode(', ', array_filter([$this->address, $this->city, $this->zipCode, $this->country]));
+    }
+
     public function getDescription(): ?string { return $this->description; }
     public function setDescription(?string $v): static { $this->description = $v; return $this; }
 
     public function getCategory(): ?string { return $this->category; }
     public function setCategory(?string $v): static { $this->category = $v; return $this; }
+
+    public function getWorkingHours(): array { return $this->workingHours ?? self::defaultWorkingHours(); }
+    public function setWorkingHours(array $v): static { $this->workingHours = $v; return $this; }
+
+    public function getTimeStep(): int { return $this->timeStep; }
+    public function setTimeStep(int $v): static { $this->timeStep = $v; return $this; }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }

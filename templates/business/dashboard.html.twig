@@ -1,5 +1,37 @@
 {% extends 'base.html.twig' %}
-{% block title %}{{ organization.name }} — Dashboard{% endblock %}
+{% block title %}{{ organization.name }} — {{ 'nav.dashboard'|trans }}{% endblock %}
+
+{% block head %}
+<style>
+/* ── Calendar ── */
+.cal-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.cal-table { border-collapse: collapse; min-width: 700px; table-layout: fixed; }
+.cal-table th, .cal-table td { border: 1px solid #f3f4f6; }
+
+.cal-time-th { width: 58px; background: #fff; }
+.cal-day-th  { text-align: center; padding: 10px 4px 8px; background: #f9fafb; min-width: 110px; }
+.cal-day-th .d-name { font-size: .63rem; font-weight: 700; text-transform: uppercase; color: #9ca3af; letter-spacing: .05em; }
+.cal-day-th .d-num  { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .9rem; font-weight: 700; color: #374151; margin: 3px auto 0; }
+.cal-day-th.today   { background: #f5f3ff; border-bottom: 2px solid #6366f1; }
+.cal-day-th.today .d-num { background: #6366f1; color: #fff; }
+
+.cal-time-td { font-size: .7rem; color: #9ca3af; text-align: right; padding: 0 8px; white-space: nowrap; vertical-align: top; padding-top: 6px; width: 58px; background: #fff; }
+.cal-day-td  { vertical-align: top; padding: 3px; min-height: 48px; height: 52px; }
+.cal-day-td.closed { background: repeating-linear-gradient(135deg, #f9fafb 0, #f9fafb 4px, #fff 4px, #fff 12px); }
+
+.cal-appt { border-radius: 6px; padding: 4px 7px; font-size: .75rem; font-weight: 600; cursor: pointer; margin-bottom: 2px; line-height: 1.3; transition: opacity .1s, transform .1s; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-appt:hover { opacity: .82; transform: translateY(-1px); }
+.cal-appt.pending   { background: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
+.cal-appt.confirmed { background: #d1fae5; color: #065f46; border-left: 3px solid #10b981; }
+.cal-appt.cancelled { background: #f3f4f6; color: #9ca3af; border-left: 3px solid #d1d5db; opacity: .6; }
+
+/* week nav */
+.week-nav { display: flex; align-items: center; gap: 10px; }
+.week-nav-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e5e7eb; background: #f9fafb; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7280; transition: .15s; }
+.week-nav-btn:hover  { background: #ede9fe; border-color: #6366f1; color: #6366f1; }
+.week-nav-btn.disabled { opacity: .35; pointer-events: none; }
+</style>
+{% endblock %}
 
 {% block body %}
 <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
@@ -9,139 +41,311 @@
             {{ organization.category }}{% if organization.category and organization.address %} · {% endif %}{{ organization.address }}
         </p>
     </div>
-    <div class="d-flex gap-2">
-        <a href="{{ path('business_employees') }}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-people me-1"></i>Manage Employees
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ path('business_blocked_times') }}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-slash-circle me-1"></i>{{ 'nav.blocked_times'|trans }}
         </a>
-        <span class="badge bg-light text-secondary border align-self-center">
-            <i class="bi bi-building me-1"></i>Business
-        </span>
+        <a href="{{ path('business_settings_info') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-geo-alt me-1"></i>{{ 'nav.location'|trans }}
+        </a>
+        <a href="{{ path('business_working_hours') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-clock me-1"></i>{{ 'nav.working_hours'|trans }}
+        </a>
+        <a href="{{ path('business_employees') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-people me-1"></i>{{ 'nav.employees'|trans }}
+        </a>
     </div>
 </div>
 
-{# Stats #}
 <div class="row g-3 mb-4">
     <div class="col-4">
         <div class="card p-3 text-center">
             <div class="fw-bold fs-3 mb-0" style="color:#92400e">{{ counts.pending }}</div>
-            <div class="text-muted small">Pending</div>
+            <div class="text-muted small">{{ 'business.stats.pending'|trans }}</div>
         </div>
     </div>
     <div class="col-4">
         <div class="card p-3 text-center">
             <div class="fw-bold fs-3 mb-0" style="color:#065f46">{{ counts.confirmed }}</div>
-            <div class="text-muted small">Confirmed</div>
+            <div class="text-muted small">{{ 'business.stats.confirmed'|trans }}</div>
         </div>
     </div>
     <div class="col-4">
         <div class="card p-3 text-center">
             <div class="fw-bold fs-3 mb-0" style="color:#991b1b">{{ counts.cancelled }}</div>
-            <div class="text-muted small">Cancelled</div>
+            <div class="text-muted small">{{ 'business.stats.cancelled'|trans }}</div>
         </div>
     </div>
 </div>
 
-{# Filter tabs #}
-<ul class="nav nav-pills mb-3" id="statusTabs">
-    <li class="nav-item"><button class="nav-link active" onclick="filterStatus('all',this)">All</button></li>
-    <li class="nav-item"><button class="nav-link" onclick="filterStatus('pending',this)">Pending</button></li>
-    <li class="nav-item"><button class="nav-link" onclick="filterStatus('confirmed',this)">Confirmed</button></li>
-    <li class="nav-item"><button class="nav-link" onclick="filterStatus('cancelled',this)">Cancelled</button></li>
-</ul>
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div class="week-nav">
+        <button class="week-nav-btn" id="prevWeek"><i class="bi bi-chevron-left"></i></button>
+        <span class="fw-semibold" id="weekLabel" style="min-width:160px;text-align:center"></span>
+        <button class="week-nav-btn" id="nextWeek"><i class="bi bi-chevron-right"></i></button>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary" id="todayBtn">{{ 'common.today'|trans }}</button>
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-secondary filter-btn active" data-filter="all">{{ 'common.all'|trans }}</button>
+            <button type="button" class="btn btn-outline-warning filter-btn" data-filter="pending">{{ 'status.pending'|trans }}</button>
+            <button type="button" class="btn btn-outline-success filter-btn" data-filter="confirmed">{{ 'status.confirmed'|trans }}</button>
+            <button type="button" class="btn btn-outline-secondary filter-btn" data-filter="cancelled">{{ 'status.cancelled'|trans }}</button>
+        </div>
+    </div>
+</div>
 
-{% if appointments is empty %}
-    <div class="card p-5 text-center">
-        <div style="font-size:3rem; color:#d1d5db"><i class="bi bi-calendar-x"></i></div>
-        <h5 class="fw-semibold mt-3 mb-1">No appointments yet</h5>
-        <p class="text-muted small">Appointments booked by clients will appear here.</p>
-    </div>
-{% else %}
-    <div class="row g-3" id="appointmentList">
-        {% for appt in appointments %}
-            <div class="col-12 appt-row" data-status="{{ appt.status }}">
-                <div class="card p-3">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                        <div>
-                            <div class="d-flex align-items-center gap-2 mb-1">
-                                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                                     style="width:34px;height:34px;background:#f3f4f6;font-size:.85rem;color:#6b7280">
-                                    <i class="bi bi-person"></i>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold mb-0">
-                                        {{ appt.bookerName }}
-                                        {% if appt.guestBooking %}
-                                            <span class="badge bg-light text-secondary border ms-1" style="font-size:.65rem">Guest</span>
-                                        {% endif %}
-                                    </h6>
-                                    {% if appt.bookerPhone %}
-                                        <div class="text-muted" style="font-size:.78rem">
-                                            <i class="bi bi-telephone me-1"></i>{{ appt.bookerPhone }}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="text-muted small ps-1">
-                                <i class="bi bi-calendar3 me-1"></i>{{ appt.appointmentDate|date('D, M j Y') }}
-                                &nbsp;·&nbsp;
-                                <i class="bi bi-clock me-1"></i>{{ appt.appointmentTime|date('H:i') }}
-                            </div>
-                            {% if appt.employee %}
-                                <div class="text-muted small ps-1">
-                                    <i class="bi bi-person-badge me-1"></i>{{ appt.employee.name }}
-                                    {% if appt.employee.role %}<span class="text-secondary">({{ appt.employee.role }})</span>{% endif %}
-                                </div>
-                            {% endif %}
-                            {% if appt.notes %}
-                                <div class="text-muted small ps-1 mt-1">
-                                    <i class="bi bi-chat-left-text me-1"></i>{{ appt.notes }}
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="status-badge badge-{{ appt.status }}">
-                                {% if appt.status == 'pending' %}<i class="bi bi-hourglass-split me-1"></i>{% endif %}
-                                {% if appt.status == 'confirmed' %}<i class="bi bi-check-circle me-1"></i>{% endif %}
-                                {% if appt.status == 'cancelled' %}<i class="bi bi-x-circle me-1"></i>{% endif %}
-                                {{ appt.status|capitalize }}
-                            </span>
-                            {% if appt.status == 'pending' %}
-                                <form method="post" action="{{ path('business_confirm', {id: appt.id}) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-success btn-sm" title="Confirm">
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                </form>
-                                <form method="post" action="{{ path('business_cancel', {id: appt.id}) }}" class="d-inline"
-                                      onsubmit="return confirm('Cancel this appointment?')">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancel">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </form>
-                            {% elseif appt.status == 'confirmed' %}
-                                <form method="post" action="{{ path('business_cancel', {id: appt.id}) }}" class="d-inline"
-                                      onsubmit="return confirm('Cancel this confirmed appointment?')">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancel">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </form>
-                            {% endif %}
-                        </div>
-                    </div>
+<div class="cal-wrap card p-0" style="overflow:hidden">
+    <div id="calInner" class="cal-wrap" style="padding:0"></div>
+</div>
+
+<div class="modal fade" id="apptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-1">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0" id="modalName"></h5>
+                    <div class="text-muted small" id="modalMeta"></div>
                 </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-        {% endfor %}
+            <div class="modal-body pt-2">
+                <div id="modalBody"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0" id="modalFooter"></div>
+        </div>
     </div>
-{% endif %}
+</div>
+
+<form method="post" id="confirmForm" style="display:none">
+    <input type="hidden" name="_confirm" value="1">
+</form>
+<form method="post" id="cancelForm" style="display:none">
+    <input type="hidden" name="cancellation_note" id="cancelNote">
+</form>
 {% endblock %}
 
 {% block scripts %}
+{% set dayAbbr = [
+    'cal.day.0'|trans, 'cal.day.1'|trans, 'cal.day.2'|trans,
+    'cal.day.3'|trans, 'cal.day.4'|trans, 'cal.day.5'|trans, 'cal.day.6'|trans
+] %}
+{% set monthNames = [
+    'cal.month.0'|trans, 'cal.month.1'|trans, 'cal.month.2'|trans,
+    'cal.month.3'|trans, 'cal.month.4'|trans, 'cal.month.5'|trans,
+    'cal.month.6'|trans, 'cal.month.7'|trans, 'cal.month.8'|trans,
+    'cal.month.9'|trans, 'cal.month.10'|trans, 'cal.month.11'|trans
+] %}
 <script>
-function filterStatus(status, btn) {
-    document.querySelectorAll('#statusTabs .nav-link').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.appt-row').forEach(row => {
-        row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
-    });
+const appointments  = {{ appointments_json|raw }};
+const workingHours  = {{ organization.workingHours|json_encode|raw }};
+const timeStep      = {{ organization.timeStep }};
+
+const confirmUrl = id => `{{ path('business_confirm', {id: '__ID__'}) }}`.replace('__ID__', id);
+const cancelUrl  = id => `{{ path('business_cancel',  {id: '__ID__'}) }}`.replace('__ID__', id);
+
+const DAY_ABBR   = {{ dayAbbr|json_encode|raw }};
+const DAY_NAMES  = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const MONTH_NAMES = {{ monthNames|json_encode|raw }};
+
+const T = {
+    pending:              {{ 'status.pending'|trans|json_encode|raw }},
+    confirmed:            {{ 'status.confirmed'|trans|json_encode|raw }},
+    cancelled:            {{ 'status.cancelled'|trans|json_encode|raw }},
+    guest:                {{ 'status.guest'|trans|json_encode|raw }},
+    close:                {{ 'common.close'|trans|json_encode|raw }},
+    confirm:              {{ 'common.confirm'|trans|json_encode|raw }},
+    cancel:               {{ 'common.cancel'|trans|json_encode|raw }},
+    cancelTitle:          {{ 'business.cancel.title'|trans|json_encode|raw }},
+    cancelNoteLabel:      {{ 'business.cancel.note_label'|trans|json_encode|raw }},
+    cancelNotePlaceholder:{{ 'business.cancel.note_placeholder'|trans|json_encode|raw }},
+    cancelYes:            {{ 'business.cancel.yes'|trans|json_encode|raw }},
+    cancelKeep:           {{ 'business.cancel.keep'|trans|json_encode|raw }},
+    noWorkingHours:       {{ 'business.no_working_hours'|trans|json_encode|raw }},
+    setWorkingHours:      {{ 'business.set_working_hours'|trans|json_encode|raw }},
+    noApptsWeek:          {{ 'business.no_appts_week'|trans|json_encode|raw }},
+};
+
+let windowStart  = startOfWeek();
+let activeFilter = 'all';
+
+function startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+function startOfWeek()  {
+    const d = startOfToday();
+    const diff = d.getDay() === 0 ? -6 : 1 - d.getDay();
+    d.setDate(d.getDate() + diff);
+    return d;
 }
+function addDays(d, n)  { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function isoDate(d)     { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+
+function visibleAppointments() {
+    if (activeFilter === 'all') return appointments;
+    return appointments.filter(a => a.status === activeFilter);
+}
+
+function renderCalendar() {
+    const today = startOfToday();
+    const days  = Array.from({length: 7}, (_, i) => addDays(windowStart, i));
+
+    const months = new Set(days.map(d => MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear()));
+    document.getElementById('weekLabel').textContent = [...months].join(' / ');
+    document.getElementById('prevWeek').classList.toggle('disabled', windowStart <= today);
+
+    let minOpen = Infinity, maxClose = -Infinity;
+    Object.values(workingHours).forEach(cfg => {
+        if (!cfg || !cfg.enabled) return;
+        minOpen  = Math.min(minOpen,  toMin(cfg.open));
+        maxClose = Math.max(maxClose, toMin(cfg.close));
+    });
+
+    const appts = visibleAppointments();
+    const idx = {};
+    appts.forEach(a => {
+        (idx[a.date] ??= {})[a.time] ??= [];
+        idx[a.date][a.time].push(a);
+    });
+
+    let html = '<table class="cal-table w-100"><thead><tr>';
+    html += '<th class="cal-time-th"></th>';
+    days.forEach(d => {
+        const isToday  = isoDate(d) === isoDate(today);
+        const dayName  = DAY_NAMES[d.getDay()];
+        const cfg      = workingHours[dayName];
+        const isClosed = !cfg || !cfg.enabled;
+        html += `<th class="cal-day-th${isToday ? ' today' : ''}${isClosed ? ' closed' : ''}">
+            <div class="d-name">${DAY_ABBR[d.getDay()]}</div>
+            <div class="d-num">${d.getDate()}</div>
+        </th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    if (minOpen === Infinity) {
+        const whUrl = {{ path('business_working_hours')|json_encode|raw }};
+        html += `<tr><td colspan="8" class="text-center text-muted py-5 small">
+            <i class="bi bi-clock me-1"></i>${T.noWorkingHours}
+            <a href="${whUrl}" class="ms-1">${T.setWorkingHours}</a>
+        </td></tr>`;
+    } else {
+        for (let t = minOpen; t < maxClose; t += timeStep) {
+            const ts = toStr(t);
+            html += '<tr>';
+            html += `<td class="cal-time-td">${ts}</td>`;
+            days.forEach(d => {
+                const dayName  = DAY_NAMES[d.getDay()];
+                const cfg      = workingHours[dayName];
+                const isClosed = !cfg || !cfg.enabled || t < toMin(cfg.open) || t >= toMin(cfg.close);
+                const cell     = idx[isoDate(d)]?.[ts] || [];
+                let pills = '';
+                cell.forEach(a => {
+                    pills += `<div class="cal-appt ${a.status}" onclick="openModal(${a.id})" title="${a.booker_name}">${a.booker_name}</div>`;
+                });
+                html += `<td class="cal-day-td${isClosed ? ' closed' : ''}">${pills}</td>`;
+            });
+            html += '</tr>';
+        }
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('calInner').innerHTML = html;
+}
+
+function openModal(id) {
+    const a = appointments.find(x => x.id === id);
+    if (!a) return;
+
+    const statusLabel = { pending: T.pending, confirmed: T.confirmed, cancelled: T.cancelled };
+    const statusClass = { pending: 'warning', confirmed: 'success', cancelled: 'secondary' };
+
+    document.getElementById('modalName').innerHTML =
+        a.booker_name + (a.guest ? ` <span class="badge bg-light text-secondary border ms-1" style="font-size:.65rem">${T.guest}</span>` : '');
+    document.getElementById('modalMeta').textContent = a.date + ' · ' + a.time;
+
+    let body = `<div class="d-flex flex-column gap-2 small">`;
+    if (a.booker_phone) body += `<div><i class="bi bi-telephone me-2 text-muted"></i>${a.booker_phone}</div>`;
+    if (a.employee_name) {
+        body += `<div><i class="bi bi-person-badge me-2 text-muted"></i>${a.employee_name}`;
+        if (a.employee_role) body += ` <span class="text-muted">(${a.employee_role})</span>`;
+        body += `</div>`;
+    }
+    if (a.notes) body += `<div><i class="bi bi-chat-left-text me-2 text-muted"></i>${a.notes}</div>`;
+    body += `<div><i class="bi bi-circle-fill me-2" style="color:var(--bs-${statusClass[a.status]});font-size:.5rem;vertical-align:middle"></i>
+        <span class="badge bg-${statusClass[a.status]}-subtle text-${statusClass[a.status]}-emphasis border border-${statusClass[a.status]}-subtle">${statusLabel[a.status]}</span></div>`;
+    if (a.cancel_note) body += `<div class="text-muted fst-italic"><i class="bi bi-info-circle me-2"></i>${a.cancel_note}</div>`;
+    body += `</div>`;
+    document.getElementById('modalBody').innerHTML = body;
+
+    let footer = `<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">${T.close}</button>`;
+    if (a.status === 'pending') {
+        footer += `<button type="button" class="btn btn-success btn-sm" onclick="doConfirm(${a.id})">
+            <i class="bi bi-check-lg me-1"></i>${T.confirm}</button>`;
+        footer += `<button type="button" class="btn btn-danger btn-sm" onclick="doCancel(${a.id},'${a.booker_name.replace(/'/g,"\\'")}',0)">
+            <i class="bi bi-x-lg me-1"></i>${T.cancel}</button>`;
+    } else if (a.status === 'confirmed') {
+        footer += `<button type="button" class="btn btn-danger btn-sm" onclick="doCancel(${a.id},'${a.booker_name.replace(/'/g,"\\'")}',1)">
+            <i class="bi bi-x-lg me-1"></i>${T.cancel}</button>`;
+    }
+    document.getElementById('modalFooter').innerHTML = footer;
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('apptModal')).show();
+}
+
+function doConfirm(id) {
+    const form = document.getElementById('confirmForm');
+    form.action = confirmUrl(id);
+    form.submit();
+}
+
+async function doCancel(id, name, confirmed) {
+    bootstrap.Modal.getInstance(document.getElementById('apptModal'))?.hide();
+    const result = await Swal.fire({
+        title: T.cancelTitle,
+        html: `<p class="text-muted mb-0">${name}${confirmed ? ` <span class="badge bg-success ms-1">${T.confirmed}</span>` : ''}</p>`,
+        input: 'textarea',
+        inputLabel: T.cancelNoteLabel,
+        inputPlaceholder: T.cancelNotePlaceholder,
+        inputAttributes: { rows: 3, style: 'resize:none;font-size:.9rem' },
+        showCancelButton: true,
+        confirmButtonText: T.cancelYes,
+        confirmButtonColor: '#dc3545',
+        cancelButtonText: T.cancelKeep,
+        reverseButtons: true,
+        focusCancel: true,
+    });
+    if (result.isConfirmed) {
+        const form = document.getElementById('cancelForm');
+        form.action = cancelUrl(id);
+        document.getElementById('cancelNote').value = result.value || '';
+        form.submit();
+    }
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        activeFilter = this.dataset.filter;
+        renderCalendar();
+    });
+});
+
+document.getElementById('prevWeek').addEventListener('click', () => {
+    const today = startOfToday();
+    windowStart = addDays(windowStart, -7);
+    if (windowStart < today) windowStart = startOfWeek();
+    renderCalendar();
+});
+document.getElementById('nextWeek').addEventListener('click', () => {
+    windowStart = addDays(windowStart, 7);
+    renderCalendar();
+});
+document.getElementById('todayBtn').addEventListener('click', () => {
+    windowStart = startOfWeek();
+    renderCalendar();
+});
+
+renderCalendar();
 </script>
 {% endblock %}

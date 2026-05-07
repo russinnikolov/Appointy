@@ -54,6 +54,55 @@ class AppointmentRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Returns an existing non-cancelled appointment for the same employee/date/time.
+     * Pass $excludeId to ignore the appointment being rescheduled.
+     */
+    public function findConflict(Employee $employee, \DateTimeInterface $date, \DateTimeInterface $time, ?int $excludeId = null): ?Appointment
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->andWhere('a.employee = :emp')
+            ->andWhere('a.appointmentDate = :date')
+            ->andWhere('a.appointmentTime = :time')
+            ->andWhere('a.status != :cancelled')
+            ->setParameter('emp', $employee)
+            ->setParameter('date', $date->format('Y-m-d'))
+            ->setParameter('time', $time->format('H:i:s'))
+            ->setParameter('cancelled', Appointment::STATUS_CANCELLED)
+            ->setMaxResults(1);
+
+        if ($excludeId !== null) {
+            $qb->andWhere('a.id != :id')->setParameter('id', $excludeId);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Returns array of "HH:MM" strings that are booked for the given employee on the given date.
+     * @return string[]
+     */
+    public function findBusySlots(Employee $employee, string $date): array
+    {
+        $rows = $this->createQueryBuilder('a')
+            ->select('a.appointmentTime')
+            ->andWhere('a.employee = :emp')
+            ->andWhere('a.appointmentDate = :date')
+            ->andWhere('a.status != :cancelled')
+            ->setParameter('emp', $employee)
+            ->setParameter('date', $date)
+            ->setParameter('cancelled', Appointment::STATUS_CANCELLED)
+            ->getQuery()
+            ->getResult();
+
+        return array_map(
+            static fn($row) => $row['appointmentTime'] instanceof \DateTimeInterface
+                ? $row['appointmentTime']->format('H:i')
+                : substr((string) $row['appointmentTime'], 0, 5),
+            $rows
+        );
+    }
+
     /** @return array{pending: int, confirmed: int, cancelled: int} */
     public function countByStatus(Organization $org): array
     {

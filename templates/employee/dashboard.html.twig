@@ -1,0 +1,86 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'nav.my_schedule'|trans }} — {{ employee.name }}{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-0">{{ 'nav.my_schedule'|trans }}</h4>
+        <p class="text-muted small mb-0">
+            {{ employee.name }}{% if employee.role %} · {{ employee.role }}{% endif %}
+            &mdash; {{ organization.name }}
+        </p>
+    </div>
+    <a href="{{ path('employee_profile') }}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-person-gear me-1"></i>{{ 'employee.schedule.my_profile'|trans }}
+    </a>
+</div>
+
+{% if employee.lunchBreakStart and employee.lunchBreakEnd %}
+    <div class="alert py-2 small mb-4 d-flex align-items-center gap-2"
+         style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534">
+        <i class="bi bi-cup-hot"></i>
+        {{ 'employee.lunch_badge'|trans }}: <strong>{{ employee.lunchBreakStart|date('H:i') }} – {{ employee.lunchBreakEnd|date('H:i') }}</strong>
+        <a href="{{ path('employee_profile') }}" class="ms-1 text-decoration-none" style="color:#166534">{{ 'employee.schedule.change_lunch'|trans }}</a>
+    </div>
+{% endif %}
+
+<h6 class="fw-bold text-uppercase small text-muted mb-3">{{ 'employee.schedule.upcoming'|trans }} ({{ upcoming|length }})</h6>
+
+{% if upcoming is empty %}
+    <div class="card p-4 text-center mb-4">
+        <div style="font-size:2.5rem;color:#d1d5db"><i class="bi bi-calendar-check"></i></div>
+        <p class="text-muted small mt-2 mb-0">{{ 'employee.schedule.no_upcoming'|trans }}</p>
+    </div>
+{% else %}
+    <div class="row g-3 mb-4">
+        {% for appt in upcoming %}
+            <div class="col-12">
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                            <div class="fw-semibold">{{ appt.bookerName }}</div>
+                            {% if appt.bookerPhone %}
+                                <div class="text-muted small"><i class="bi bi-telephone me-1"></i>{{ appt.bookerPhone }}</div>
+                            {% endif %}
+                            <div class="text-muted small">
+                                <i class="bi bi-calendar3 me-1"></i>{{ appt.appointmentDate|date('D, M j Y') }}
+                                &nbsp;·&nbsp;
+                                <i class="bi bi-clock me-1"></i>{{ appt.appointmentTime|date('H:i') }}
+                            </div>
+                            {% if appt.notes %}
+                                <div class="text-muted small mt-1"><i class="bi bi-chat-left-text me-1"></i>{{ appt.notes }}</div>
+                            {% endif %}
+                        </div>
+                        <span class="status-badge badge-{{ appt.status }}">
+                            {% if appt.status == 'pending' %}<i class="bi bi-hourglass-split me-1"></i>{% endif %}
+                            {% if appt.status == 'confirmed' %}<i class="bi bi-check-circle me-1"></i>{% endif %}
+                            {{ ('status.' ~ appt.status)|trans }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if past is not empty %}
+    <h6 class="fw-bold text-uppercase small text-muted mb-3">{{ 'employee.schedule.past'|trans }} ({{ past|length }})</h6>
+    <div class="row g-2">
+        {% for appt in past %}
+            <div class="col-12">
+                <div class="card p-3 opacity-75">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <span class="fw-semibold">{{ appt.bookerName }}</span>
+                            <span class="text-muted small ms-2">
+                                {{ appt.appointmentDate|date('M j Y') }} · {{ appt.appointmentTime|date('H:i') }}
+                            </span>
+                        </div>
+                        <span class="status-badge badge-{{ appt.status }}">{{ ('status.' ~ appt.status)|trans }}</span>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

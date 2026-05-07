@@ -1,0 +1,139 @@
+{% extends 'base.html.twig' %}
+{% set lsVal = app.request.isMethod('POST')
+    ? app.request.request.get('lunch_start')
+    : (employee.lunchBreakStart ? employee.lunchBreakStart|date('H:i') : '') %}
+{% set leVal = app.request.isMethod('POST')
+    ? app.request.request.get('lunch_end')
+    : (employee.lunchBreakEnd ? employee.lunchBreakEnd|date('H:i') : '') %}
+{% block title %}{{ 'employee.profile.title'|trans }} — {{ employee.name }}{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-sm-10 col-md-8 col-lg-6">
+        <a href="{{ path('employee_dashboard') }}" class="btn btn-link text-muted ps-0 mb-3 small">
+            <i class="bi bi-arrow-left me-1"></i>{{ 'employee.profile.back'|trans }}
+        </a>
+
+        <div class="card p-4 p-md-5">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width:52px;height:52px;background:#ede9fe;color:#6366f1;font-size:1.4rem">
+                    <i class="bi bi-person-circle"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0">{{ employee.name }}</h5>
+                    <p class="text-muted small mb-0">
+                        {% if employee.role %}{{ employee.role }} · {% endif %}{{ organization.name }}
+                    </p>
+                </div>
+            </div>
+
+            {% if app.user.mustChangePassword %}
+                <div class="alert alert-warning py-2 small mb-3">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    <strong>{{ 'employee.profile.must_change'|trans }}</strong>
+                </div>
+            {% endif %}
+
+            {% if error %}
+                <div class="alert alert-danger py-2 small">
+                    <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                <p class="fw-semibold small text-uppercase text-muted mb-3">
+                    <i class="bi bi-cup-hot me-1"></i>{{ 'employee.profile.lunch_section'|trans }}
+                </p>
+                <p class="text-muted small mb-3">{{ 'employee.profile.lunch_desc'|trans }}</p>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'employee.form.lunch_start'|trans }}</label>
+                        <select name="lunch_start" class="form-select" id="lunchStart" onchange="syncLunchEnd()">
+                            <option value="">{{ 'common.no_break'|trans }}</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'employee.form.lunch_end'|trans }}</label>
+                        <select name="lunch_end" class="form-select" id="lunchEnd">
+                            <option value="">{{ 'common.no_break'|trans }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <hr class="mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'employee.profile.bio_section'|trans }}</p>
+
+                <div class="mb-4">
+                    <textarea name="bio" class="form-control" rows="3"
+                              placeholder="{{ 'employee.profile.bio_placeholder'|trans }}">{{ app.request.isMethod('POST') ? app.request.request.get('bio') : employee.bio }}</textarea>
+                </div>
+
+                <hr class="mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'employee.profile.password_section'|trans }}</p>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'employee.profile.new_password'|trans }} <span class="text-muted">{{ 'employee.form.password_keep_hint'|trans }}</span></label>
+                        <input type="password" name="new_password" class="form-control" placeholder="{{ 'employee.profile.min_chars'|trans }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'employee.profile.confirm'|trans }}</label>
+                        <input type="password" name="confirm_password" class="form-control" placeholder="{{ 'employee.profile.repeat'|trans }}">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                    <i class="bi bi-check-lg me-1"></i>{{ 'employee.profile.save'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const workingHours = {{ organization.workingHours|json_encode|raw }};
+const timeStep     = {{ organization.timeStep }};
+const savedStart   = {{ lsVal ? ('"'~lsVal~'"')|raw : 'null' }};
+const savedEnd     = {{ leVal ? ('"'~leVal~'"')|raw : 'null' }};
+
+(function buildSelects() {
+    const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+    const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+
+    let minOpen = Infinity, maxClose = -Infinity;
+    Object.values(workingHours).forEach(cfg => {
+        if (!cfg || !cfg.enabled) return;
+        const o = toMin(cfg.open), c = toMin(cfg.close);
+        if (o < minOpen)   minOpen  = o;
+        if (c > maxClose)  maxClose = c;
+    });
+
+    if (minOpen === Infinity) return;
+
+    const startSel = document.getElementById('lunchStart');
+    const endSel   = document.getElementById('lunchEnd');
+
+    for (let t = minOpen; t < maxClose; t += timeStep) {
+        const val = toStr(t);
+        startSel.appendChild(new Option(val, val, false, val === savedStart));
+        endSel.appendChild(new Option(val, val, false, val === savedEnd));
+    }
+    const closeStr = toStr(maxClose);
+    endSel.appendChild(new Option(closeStr, closeStr, false, closeStr === savedEnd));
+})();
+
+function syncLunchEnd() {
+    const startSel = document.getElementById('lunchStart');
+    const endSel   = document.getElementById('lunchEnd');
+    if (!startSel.value || endSel.value) return;
+    const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+    const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+    const endVal = toStr(toMin(startSel.value) + 60);
+    [...endSel.options].forEach(o => { if (o.value === endVal) o.selected = true; });
+}
+</script>
+{% endblock %}

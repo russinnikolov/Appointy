@@ -82,11 +82,18 @@ class AuthController extends AbstractController
                         goto render;
                     }
 
+                    $orgCity    = trim($request->request->get('org_city', ''));
+                    $orgCountry = trim($request->request->get('org_country', ''));
+                    $orgZip     = trim($request->request->get('org_zip', ''));
+
                     $org = new Organization();
                     $org->setName($orgName)
                         ->setEmail($orgEmail ?: null)
                         ->setPhone($orgPhone ?: null)
                         ->setAddress($orgAddress ?: null)
+                        ->setCity($orgCity ?: null)
+                        ->setCountry($orgCountry ?: null)
+                        ->setZipCode($orgZip ?: null)
                         ->setCategory($orgCat ?: null)
                         ->setDescription($orgDesc ?: null);
 

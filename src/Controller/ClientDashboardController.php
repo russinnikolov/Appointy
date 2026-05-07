@@ -24,8 +24,23 @@ class ClientDashboardController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
+        $appointments = $repo->findByClient($user);
+        $apptData     = array_map(static fn(Appointment $a) => [
+            'id'          => $a->getId(),
+            'org_name'    => $a->getOrganization()->getName(),
+            'org_id'      => $a->getOrganization()->getId(),
+            'date'        => $a->getAppointmentDate()->format('Y-m-d'),
+            'time'        => $a->getAppointmentTime()->format('H:i'),
+            'status'      => $a->getStatus(),
+            'employee'    => $a->getEmployee()?->getName(),
+            'emp_role'    => $a->getEmployee()?->getRole(),
+            'notes'       => $a->getNotes(),
+            'cancel_note' => $a->getCancellationNote(),
+        ], $appointments);
+
         return $this->render('client/dashboard.html.twig', [
-            'appointments' => $repo->findByClient($user),
+            'appointments_json' => json_encode($apptData),
+            'has_appointments'  => !empty($appointments),
         ]);
     }
 
@@ -50,6 +65,7 @@ class ClientDashboardController extends AbstractController
         Request $request,
         OrganizationRepository $orgRepo,
         EmployeeRepository $empRepo,
+        AppointmentRepository $apptRepo,
         EntityManagerInterface $em
     ): Response {
         $org = $orgRepo->find($id);
@@ -67,27 +83,37 @@ class ClientDashboardController extends AbstractController
             $time       = $request->request->get('time', '');
             $notes      = trim($request->request->get('notes', ''));
             $employeeId = $request->request->get('employee_id');
+            $employee   = null;
+
+            if ($employeeId) {
+                $employee = $empRepo->find((int) $employeeId);
+                if (!$employee || $employee->getOrganization() !== $org) {
+                    $employee = null;
+                }
+            }
+
+            $step  = $org->getTimeStep();
+            $allowedMinutes = [];
+            for ($m = 0; $m < 60; $m += $step) {
+                $allowedMinutes[] = str_pad((string) $m, 2, '0', STR_PAD_LEFT);
+            }
 
             if (!$date || !$time) {
                 $error = 'Please select both a date and a time.';
-            } elseif (!in_array(substr($time, 3, 2), ['00', '15', '30', '45'], true)) {
-                $error = 'Please select a valid time (on :00, :15, :30 or :45).';
+            } elseif (!in_array(substr($time, 3, 2), $allowedMinutes, true)) {
+                $error = 'Please select a valid time slot.';
             } elseif (new \DateTime($date) < new \DateTime('today')) {
                 $error = 'Appointment date cannot be in the past.';
+            } elseif ($employee && $apptRepo->findConflict($employee, new \DateTime($date), new \DateTime($time))) {
+                $error = $employee->getName() . ' already has an appointment at that time. Please choose a different time.';
             } else {
                 $appt = new Appointment();
                 $appt->setClient($user)
                      ->setOrganization($org)
+                     ->setEmployee($employee)
                      ->setAppointmentDate(new \DateTime($date))
                      ->setAppointmentTime(new \DateTime($time))
                      ->setNotes($notes ?: null);
-
-                if ($employeeId) {
-                    $employee = $empRepo->find((int) $employeeId);
-                    if ($employee && $employee->getOrganization() === $org) {
-                        $appt->setEmployee($employee);
-                    }
-                }
 
                 $em->persist($appt);
                 $em->flush();
@@ -105,14 +131,16 @@ class ClientDashboardController extends AbstractController
     }
 
     #[Route('/cancel/{id}', name: 'client_cancel', methods: ['POST'])]
-    public function cancel(int $id, AppointmentRepository $repo, EntityManagerInterface $em): Response
+    public function cancel(int $id, Request $request, AppointmentRepository $repo, EntityManagerInterface $em): Response
     {
         /** @var User $user */
         $user = $this->getUser();
         $appt = $repo->find($id);
 
         if ($appt && $appt->getClient() === $user && $appt->getStatus() === Appointment::STATUS_PENDING) {
-            $appt->setStatus(Appointment::STATUS_CANCELLED);
+            $note = trim($request->request->get('cancellation_note', ''));
+            $appt->setStatus(Appointment::STATUS_CANCELLED)
+                 ->setCancellationNote($note ?: null);
             $em->flush();
             $this->addFlash('success', 'Appointment cancelled.');
         }

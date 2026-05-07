@@ -1,0 +1,198 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'settings.info.title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block body %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ path('business_dashboard') }}" class="btn btn-link text-muted ps-0">
+        <i class="bi bi-arrow-left me-1"></i>{{ 'nav.dashboard'|trans }}
+    </a>
+    <h5 class="fw-bold mb-0">{{ 'settings.info.title'|trans }}</h5>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card p-4">
+            <form method="post" novalidate>
+                <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'settings.info.contact_section'|trans }}</p>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'common.phone'|trans }}</label>
+                        <input type="tel" name="phone" class="form-control"
+                               value="{{ organization.phone }}" placeholder="+1 555 000 0000">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'common.email'|trans }}</label>
+                        <input type="email" name="email" class="form-control"
+                               value="{{ organization.email }}" placeholder="contact@yourbusiness.com">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'common.description'|trans }}</label>
+                    <textarea name="description" class="form-control" rows="3"
+                              placeholder="{{ 'settings.info.description_placeholder'|trans }}">{{ organization.description }}</textarea>
+                </div>
+
+                <hr class="my-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'settings.info.location_section'|trans }}</p>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'settings.info.street_address'|trans }}</label>
+                    <input type="text" name="address" id="addressInput" class="form-control"
+                           value="{{ organization.address }}" placeholder="123 Main St">
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'common.city'|trans }}</label>
+                        <input type="text" name="city" id="cityInput" class="form-control"
+                               value="{{ organization.city }}" placeholder="New York">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'common.zip'|trans }}</label>
+                        <input type="text" name="zip_code" id="zipInput" class="form-control"
+                               value="{{ organization.zipCode }}" placeholder="10001">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'common.country'|trans }}</label>
+                    <input type="text" name="country" id="countryInput" class="form-control"
+                           value="{{ organization.country }}" placeholder="United States">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small d-flex justify-content-between">
+                        <span>{{ 'settings.info.map_pin'|trans }}</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-primary fw-normal" id="geocodeBtn">
+                            <i class="bi bi-crosshair me-1"></i>{{ 'settings.info.auto_locate'|trans }}
+                        </button>
+                    </label>
+                    <div id="mapPicker" class="rounded-3 overflow-hidden mb-2"
+                         style="height:240px;border:1px solid #e5e7eb"></div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="number" name="latitude" id="latInput" class="form-control form-control-sm"
+                                   step="0.0000001" placeholder="Latitude"
+                                   value="{{ organization.latitude }}">
+                        </div>
+                        <div class="col-6">
+                            <input type="number" name="longitude" id="lngInput" class="form-control form-control-sm"
+                                   step="0.0000001" placeholder="Longitude"
+                                   value="{{ organization.longitude }}">
+                        </div>
+                    </div>
+                    <p class="text-muted small mt-1 mb-0">{{ 'settings.info.map_hint'|trans }}</p>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mt-2">
+                    <i class="bi bi-check-lg me-1"></i>{{ 'settings.info.save'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card p-4">
+            <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'settings.info.quick_links'|trans }}</p>
+            <div class="d-grid gap-2">
+                <a href="{{ path('business_working_hours') }}" class="btn btn-outline-secondary btn-sm text-start">
+                    <i class="bi bi-clock me-2"></i>{{ 'nav.working_hours'|trans }}
+                </a>
+                <a href="{{ path('business_employees') }}" class="btn btn-outline-secondary btn-sm text-start">
+                    <i class="bi bi-people me-2"></i>{{ 'settings.info.manage_employees'|trans }}
+                </a>
+                <a href="{{ path('business_dashboard') }}" class="btn btn-outline-secondary btn-sm text-start">
+                    <i class="bi bi-grid me-2"></i>{{ 'nav.dashboard'|trans }}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const initLat = {{ organization.latitude ?? 51.505 }};
+const initLng = {{ organization.longitude ?? -0.09 }};
+const hasPin  = {{ organization.latitude is not null ? 'true' : 'false' }};
+const MSG_NO_ADDRESS    = {{ 'settings.info.geocode_no_address'|trans|json_encode|raw }};
+const MSG_NOT_FOUND     = {{ 'settings.info.geocode_not_found'|trans|json_encode|raw }};
+const MSG_FAILED        = {{ 'settings.info.geocode_failed'|trans|json_encode|raw }};
+const MSG_SEARCHING     = {{ 'settings.info.geocode_searching'|trans|json_encode|raw }};
+const MSG_AUTO_LOCATE   = {{ 'settings.info.auto_locate'|trans|json_encode|raw }};
+
+const map = L.map('mapPicker').setView([initLat, initLng], hasPin ? 14 : 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+let marker = hasPin ? L.marker([initLat, initLng], { draggable: true }).addTo(map) : null;
+
+if (marker) {
+    marker.on('dragend', () => updateCoords(marker.getLatLng()));
+}
+
+map.on('click', e => {
+    if (!marker) {
+        marker = L.marker(e.latlng, { draggable: true }).addTo(map);
+        marker.on('dragend', () => updateCoords(marker.getLatLng()));
+    } else {
+        marker.setLatLng(e.latlng);
+    }
+    updateCoords(e.latlng);
+});
+
+function updateCoords({ lat, lng }) {
+    document.getElementById('latInput').value = lat.toFixed(7);
+    document.getElementById('lngInput').value = lng.toFixed(7);
+}
+
+document.getElementById('geocodeBtn').addEventListener('click', async () => {
+    const parts = [
+        document.getElementById('addressInput').value,
+        document.getElementById('cityInput').value,
+        document.getElementById('zipInput').value,
+        document.getElementById('countryInput').value,
+    ].filter(Boolean);
+
+    if (!parts.length) { alert(MSG_NO_ADDRESS); return; }
+
+    const btn = document.getElementById('geocodeBtn');
+    btn.disabled = true;
+    btn.textContent = MSG_SEARCHING;
+
+    try {
+        const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(parts.join(', '))}`, {
+            headers: { 'Accept-Language': 'en' }
+        });
+        const data = await res.json();
+
+        if (!data.length) { alert(MSG_NOT_FOUND); return; }
+
+        const { lat, lon } = data[0];
+        const latlng = { lat: parseFloat(lat), lng: parseFloat(lon) };
+        map.setView([latlng.lat, latlng.lng], 15);
+
+        if (!marker) {
+            marker = L.marker(latlng, { draggable: true }).addTo(map);
+            marker.on('dragend', () => updateCoords(marker.getLatLng()));
+        } else {
+            marker.setLatLng(latlng);
+        }
+        updateCoords(latlng);
+    } catch {
+        alert(MSG_FAILED);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-crosshair me-1"></i>${MSG_AUTO_LOCATE}`;
+    }
+});
+</script>
+{% endblock %}

@@ -52,6 +52,9 @@ class Appointment
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $cancellationNote = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -112,6 +115,9 @@ class Appointment
 
     public function getNotes(): ?string { return $this->notes; }
     public function setNotes(?string $v): static { $this->notes = $v; return $this; }
+
+    public function getCancellationNote(): ?string { return $this->cancellationNote; }
+    public function setCancellationNote(?string $v): static { $this->cancellationNote = $v; return $this; }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
