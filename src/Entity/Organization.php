@@ -38,6 +38,9 @@ class Organization
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: User::class)]
     private Collection $users;
 
+    #[ORM\OneToMany(mappedBy: 'organization', targetEntity: Employee::class, orphanRemoval: true)]
+    private Collection $employees;
+
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: Appointment::class, orphanRemoval: true)]
     private Collection $appointments;
 
@@ -50,6 +53,7 @@ class Organization
     public function __construct()
     {
         $this->users        = new ArrayCollection();
+        $this->employees    = new ArrayCollection();
         $this->appointments = new ArrayCollection();
         $this->createdAt    = new \DateTimeImmutable();
         $this->updatedAt    = new \DateTimeImmutable();
@@ -86,6 +90,9 @@ class Organization
 
     /** @return Collection<int, User> */
     public function getUsers(): Collection { return $this->users; }
+
+    /** @return Collection<int, Employee> */
+    public function getEmployees(): Collection { return $this->employees; }
 
     /** @return Collection<int, Appointment> */
     public function getAppointments(): Collection { return $this->appointments; }

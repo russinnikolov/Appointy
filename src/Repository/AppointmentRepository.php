@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Appointment;
+use App\Entity\Employee;
 use App\Entity\Organization;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -31,8 +32,22 @@ class AppointmentRepository extends ServiceEntityRepository
     public function findByOrganization(Organization $org): array
     {
         return $this->createQueryBuilder('a')
+            ->leftJoin('a.employee', 'e')
+            ->addSelect('e')
             ->andWhere('a.organization = :org')
             ->setParameter('org', $org)
+            ->orderBy('a.appointmentDate', 'DESC')
+            ->addOrderBy('a.appointmentTime', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** @return Appointment[] */
+    public function findByEmployee(Employee $employee): array
+    {
+        return $this->createQueryBuilder('a')
+            ->andWhere('a.employee = :emp')
+            ->setParameter('emp', $employee)
             ->orderBy('a.appointmentDate', 'DESC')
             ->addOrderBy('a.appointmentTime', 'DESC')
             ->getQuery()

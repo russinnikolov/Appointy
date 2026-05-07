@@ -1,4 +1,5 @@
 {% extends 'base.html.twig' %}
+{% from 'macros.html.twig' import time_select %}
 {% block title %}Book Appointment — {{ organization.name }}{% endblock %}
 
 {% block body %}
@@ -18,7 +19,7 @@
                     <h5 class="fw-bold mb-0">{{ organization.name }}</h5>
                     <p class="text-muted small mb-0">
                         {% if organization.category %}{{ organization.category }}{% endif %}
-                        {% if organization.address %}· {{ organization.address }}{% endif %}
+                        {% if organization.address %} · {{ organization.address }}{% endif %}
                     </p>
                 </div>
             </div>
@@ -30,6 +31,23 @@
             {% endif %}
 
             <form method="post" novalidate>
+                {% if employees is not empty %}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">
+                        Employee <span class="text-muted">(optional)</span>
+                    </label>
+                    <select name="employee_id" class="form-select">
+                        <option value="">— Any available employee —</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}"
+                                {{ app.request.request.get('employee_id') == emp.id ? 'selected' : '' }}>
+                                {{ emp.name }}{% if emp.role %} — {{ emp.role }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Date <span class="text-danger">*</span></label>
                     <input type="date" name="date" class="form-control"
@@ -39,14 +57,13 @@
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Time <span class="text-danger">*</span></label>
-                    <input type="time" name="time" class="form-control" required
-                           value="{{ app.request.request.get('time', '09:00') }}">
+                    {{ time_select('time', app.request.request.get('time', '09:00')) }}
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold small">Notes <span class="text-muted">(optional)</span></label>
-                    <textarea name="notes" class="form-control" rows="3"
-                              placeholder="Any special requests or information…">{{ app.request.request.get('notes') }}</textarea>
+                    <textarea name="notes" class="form-control" rows="2"
+                              placeholder="Any special requests…">{{ app.request.request.get('notes') }}</textarea>
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">

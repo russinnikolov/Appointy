@@ -1,0 +1,11 @@
+{% macro time_select(name, selected) %}
+<select name="{{ name }}" class="form-select" required>
+    <option value="">— select time —</option>
+    {% for h in range(0, 23) %}
+        {% for m in ['00', '15', '30', '45'] %}
+            {% set val = '%02d'|format(h) ~ ':' ~ m %}
+            <option value="{{ val }}" {{ selected == val ? 'selected' : '' }}>{{ val }}</option>
+        {% endfor %}
+    {% endfor %}
+</select>
+{% endmacro %}

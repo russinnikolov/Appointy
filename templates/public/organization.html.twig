@@ -1,0 +1,84 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ organization.name }} — Appointy{% endblock %}
+
+{% block body %}
+<a href="{{ path('public_organizations') }}" class="btn btn-link text-muted ps-0 mb-3 small">
+    <i class="bi bi-arrow-left me-1"></i>Back to organizations
+</a>
+
+{# Org header #}
+<div class="card p-4 mb-4">
+    <div class="d-flex align-items-start gap-3 flex-wrap">
+        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+             style="width:64px;height:64px;background:#ede9fe;color:#6366f1;font-size:2rem">
+            <i class="bi bi-building"></i>
+        </div>
+        <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h4 class="fw-bold mb-0">{{ organization.name }}</h4>
+                {% if organization.category %}
+                    <span class="badge bg-light text-secondary border">{{ organization.category }}</span>
+                {% endif %}
+            </div>
+            {% if organization.address %}
+                <p class="text-muted small mb-1"><i class="bi bi-geo-alt me-1"></i>{{ organization.address }}</p>
+            {% endif %}
+            {% if organization.phone %}
+                <p class="text-muted small mb-1"><i class="bi bi-telephone me-1"></i>{{ organization.phone }}</p>
+            {% endif %}
+            {% if organization.email %}
+                <p class="text-muted small mb-1"><i class="bi bi-envelope me-1"></i>{{ organization.email }}</p>
+            {% endif %}
+            {% if organization.description %}
+                <p class="text-muted small mb-0 mt-2">{{ organization.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Employees #}
+<h5 class="fw-bold mb-3"><i class="bi bi-people me-2"></i>Our Team</h5>
+
+{% if employees is empty %}
+    <div class="card p-4 text-center text-muted">
+        <i class="bi bi-people" style="font-size:2rem"></i>
+        <p class="mt-2 mb-0 small">No employees listed yet.</p>
+    </div>
+{% else %}
+    <div class="row g-3">
+        {% for emp in employees %}
+            <div class="col-sm-6 col-lg-4">
+                <div class="card p-3 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                             style="width:44px;height:44px;background:#f3f4f6;color:#6b7280;font-size:1.2rem">
+                            <i class="bi bi-person"></i>
+                        </div>
+                        <div>
+                            <div class="fw-semibold">{{ emp.name }}</div>
+                            {% if emp.role %}
+                                <div class="text-muted small">{{ emp.role }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if emp.bio %}
+                        <p class="text-muted small mb-3"
+                           style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">
+                            {{ emp.bio }}
+                        </p>
+                    {% endif %}
+                    {% if emp.phone %}
+                        <p class="text-muted small mb-2">
+                            <i class="bi bi-telephone me-1"></i>{{ emp.phone }}
+                        </p>
+                    {% endif %}
+                    <a href="{{ path('public_book', {orgId: organization.id, employeeId: emp.id}) }}"
+                       class="btn btn-primary btn-sm w-100 mt-auto">
+                        <i class="bi bi-calendar-plus me-1"></i>Book with {{ emp.name|split(' ')|first }}
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

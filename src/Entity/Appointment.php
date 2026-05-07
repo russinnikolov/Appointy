@@ -19,13 +19,26 @@ class Appointment
     #[ORM\Column]
     private ?int $id = null;
 
+    /** Null for guest bookings */
     #[ORM\ManyToOne(inversedBy: 'appointments')]
-    #[ORM\JoinColumn(nullable: false, name: 'client_id')]
+    #[ORM\JoinColumn(nullable: true, name: 'client_id', onDelete: 'SET NULL')]
     private ?User $client = null;
 
     #[ORM\ManyToOne(inversedBy: 'appointments')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Organization $organization = null;
+
+    #[ORM\ManyToOne(inversedBy: 'appointments')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Employee $employee = null;
+
+    /** Guest name when booked without an account */
+    #[ORM\Column(length: 150, nullable: true)]
+    private ?string $guestName = null;
+
+    /** Guest phone when booked without an account */
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $guestPhone = null;
 
     #[ORM\Column(type: 'date')]
     private ?\DateTimeInterface $appointmentDate = null;
@@ -64,6 +77,29 @@ class Appointment
 
     public function getOrganization(): ?Organization { return $this->organization; }
     public function setOrganization(?Organization $v): static { $this->organization = $v; return $this; }
+
+    public function getEmployee(): ?Employee { return $this->employee; }
+    public function setEmployee(?Employee $v): static { $this->employee = $v; return $this; }
+
+    public function getGuestName(): ?string { return $this->guestName; }
+    public function setGuestName(?string $v): static { $this->guestName = $v; return $this; }
+
+    public function getGuestPhone(): ?string { return $this->guestPhone; }
+    public function setGuestPhone(?string $v): static { $this->guestPhone = $v; return $this; }
+
+    /** Returns the display name regardless of whether booked as guest or account */
+    public function getBookerName(): string
+    {
+        return $this->client?->getName() ?? $this->guestName ?? 'Unknown';
+    }
+
+    /** Returns the contact phone regardless of booking type */
+    public function getBookerPhone(): ?string
+    {
+        return $this->client?->getPhone() ?? $this->guestPhone;
+    }
+
+    public function isGuestBooking(): bool { return $this->client === null; }
 
     public function getAppointmentDate(): ?\DateTimeInterface { return $this->appointmentDate; }
     public function setAppointmentDate(\DateTimeInterface $v): static { $this->appointmentDate = $v; return $this; }

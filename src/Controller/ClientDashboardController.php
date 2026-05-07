@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Appointment;
 use App\Entity\User;
 use App\Repository\AppointmentRepository;
+use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -48,6 +49,7 @@ class ClientDashboardController extends AbstractController
         int $id,
         Request $request,
         OrganizationRepository $orgRepo,
+        EmployeeRepository $empRepo,
         EntityManagerInterface $em
     ): Response {
         $org = $orgRepo->find($id);
@@ -56,16 +58,20 @@ class ClientDashboardController extends AbstractController
         }
 
         /** @var User $user */
-        $user  = $this->getUser();
-        $error = null;
+        $user      = $this->getUser();
+        $employees = $empRepo->findActiveByOrganization($org);
+        $error     = null;
 
         if ($request->isMethod('POST')) {
-            $date  = $request->request->get('date', '');
-            $time  = $request->request->get('time', '');
-            $notes = trim($request->request->get('notes', ''));
+            $date       = $request->request->get('date', '');
+            $time       = $request->request->get('time', '');
+            $notes      = trim($request->request->get('notes', ''));
+            $employeeId = $request->request->get('employee_id');
 
             if (!$date || !$time) {
                 $error = 'Please select both a date and a time.';
+            } elseif (!in_array(substr($time, 3, 2), ['00', '15', '30', '45'], true)) {
+                $error = 'Please select a valid time (on :00, :15, :30 or :45).';
             } elseif (new \DateTime($date) < new \DateTime('today')) {
                 $error = 'Appointment date cannot be in the past.';
             } else {
@@ -75,6 +81,13 @@ class ClientDashboardController extends AbstractController
                      ->setAppointmentDate(new \DateTime($date))
                      ->setAppointmentTime(new \DateTime($time))
                      ->setNotes($notes ?: null);
+
+                if ($employeeId) {
+                    $employee = $empRepo->find((int) $employeeId);
+                    if ($employee && $employee->getOrganization() === $org) {
+                        $appt->setEmployee($employee);
+                    }
+                }
 
                 $em->persist($appt);
                 $em->flush();
@@ -86,6 +99,7 @@ class ClientDashboardController extends AbstractController
 
         return $this->render('client/book.html.twig', [
             'organization' => $org,
+            'employees'    => $employees,
             'error'        => $error,
         ]);
     }

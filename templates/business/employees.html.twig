@@ -1,0 +1,86 @@
+{% extends 'base.html.twig' %}
+{% block title %}Employees — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Employees</h4>
+        <p class="text-muted small mb-0">{{ organization.name }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ path('business_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Dashboard
+        </a>
+        <a href="{{ path('business_employee_new') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Add Employee
+        </a>
+    </div>
+</div>
+
+{% if employees is empty %}
+    <div class="card p-5 text-center">
+        <div style="font-size:3rem; color:#d1d5db"><i class="bi bi-people"></i></div>
+        <h5 class="fw-semibold mt-3 mb-1">No employees yet</h5>
+        <p class="text-muted small mb-3">Add your team so clients can book appointments with specific people.</p>
+        <a href="{{ path('business_employee_new') }}" class="btn btn-primary mx-auto" style="width:fit-content">
+            <i class="bi bi-plus-lg me-1"></i>Add First Employee
+        </a>
+    </div>
+{% else %}
+    <div class="row g-3">
+        {% for emp in employees %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card p-3 h-100 {{ not emp.active ? 'opacity-50' : '' }}">
+                    <div class="d-flex align-items-start gap-3 mb-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                             style="width:44px;height:44px;background:#f3f4f6;color:#6b7280;font-size:1.2rem">
+                            <i class="bi bi-person"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-semibold">{{ emp.name }}</div>
+                                    {% if emp.role %}
+                                        <div class="text-muted small">{{ emp.role }}</div>
+                                    {% endif %}
+                                </div>
+                                <span class="badge {{ emp.active ? 'bg-success' : 'bg-secondary' }} ms-2" style="font-size:.65rem">
+                                    {{ emp.active ? 'Active' : 'Inactive' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if emp.phone %}
+                        <div class="text-muted small mb-1"><i class="bi bi-telephone me-1"></i>{{ emp.phone }}</div>
+                    {% endif %}
+                    {% if emp.email %}
+                        <div class="text-muted small mb-1"><i class="bi bi-envelope me-1"></i>{{ emp.email }}</div>
+                    {% endif %}
+                    {% if emp.bio %}
+                        <div class="text-muted small mb-2"
+                             style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">
+                            {{ emp.bio }}
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 mt-auto pt-2">
+                        <form method="post" action="{{ path('business_employee_toggle', {id: emp.id}) }}" class="flex-grow-1">
+                            <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                                <i class="bi bi-{{ emp.active ? 'pause' : 'play' }} me-1"></i>
+                                {{ emp.active ? 'Deactivate' : 'Activate' }}
+                            </button>
+                        </form>
+                        <form method="post" action="{{ path('business_employee_delete', {id: emp.id}) }}"
+                              onsubmit="return confirm('Remove {{ emp.name }}? This cannot be undone.')">
+                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Remove">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

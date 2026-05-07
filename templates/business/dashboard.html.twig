@@ -9,9 +9,14 @@
             {{ organization.category }}{% if organization.category and organization.address %} · {% endif %}{{ organization.address }}
         </p>
     </div>
-    <span class="badge bg-light text-secondary border">
-        <i class="bi bi-building me-1"></i>Business Account
-    </span>
+    <div class="d-flex gap-2">
+        <a href="{{ path('business_employees') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-people me-1"></i>Manage Employees
+        </a>
+        <span class="badge bg-light text-secondary border align-self-center">
+            <i class="bi bi-building me-1"></i>Business
+        </span>
+    </div>
 </div>
 
 {# Stats #}
@@ -38,18 +43,10 @@
 
 {# Filter tabs #}
 <ul class="nav nav-pills mb-3" id="statusTabs">
-    <li class="nav-item">
-        <button class="nav-link active" onclick="filterStatus('all', this)">All</button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link" onclick="filterStatus('pending', this)">Pending</button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link" onclick="filterStatus('confirmed', this)">Confirmed</button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link" onclick="filterStatus('cancelled', this)">Cancelled</button>
-    </li>
+    <li class="nav-item"><button class="nav-link active" onclick="filterStatus('all',this)">All</button></li>
+    <li class="nav-item"><button class="nav-link" onclick="filterStatus('pending',this)">Pending</button></li>
+    <li class="nav-item"><button class="nav-link" onclick="filterStatus('confirmed',this)">Confirmed</button></li>
+    <li class="nav-item"><button class="nav-link" onclick="filterStatus('cancelled',this)">Cancelled</button></li>
 </ul>
 
 {% if appointments is empty %}
@@ -70,16 +67,29 @@
                                      style="width:34px;height:34px;background:#f3f4f6;font-size:.85rem;color:#6b7280">
                                     <i class="bi bi-person"></i>
                                 </div>
-                                <h6 class="fw-bold mb-0">{{ appt.client.name }}</h6>
+                                <div>
+                                    <h6 class="fw-bold mb-0">
+                                        {{ appt.bookerName }}
+                                        {% if appt.guestBooking %}
+                                            <span class="badge bg-light text-secondary border ms-1" style="font-size:.65rem">Guest</span>
+                                        {% endif %}
+                                    </h6>
+                                    {% if appt.bookerPhone %}
+                                        <div class="text-muted" style="font-size:.78rem">
+                                            <i class="bi bi-telephone me-1"></i>{{ appt.bookerPhone }}
+                                        </div>
+                                    {% endif %}
+                                </div>
                             </div>
                             <div class="text-muted small ps-1">
                                 <i class="bi bi-calendar3 me-1"></i>{{ appt.appointmentDate|date('D, M j Y') }}
                                 &nbsp;·&nbsp;
                                 <i class="bi bi-clock me-1"></i>{{ appt.appointmentTime|date('H:i') }}
                             </div>
-                            {% if appt.client.phone %}
+                            {% if appt.employee %}
                                 <div class="text-muted small ps-1">
-                                    <i class="bi bi-telephone me-1"></i>{{ appt.client.phone }}
+                                    <i class="bi bi-person-badge me-1"></i>{{ appt.employee.name }}
+                                    {% if appt.employee.role %}<span class="text-secondary">({{ appt.employee.role }})</span>{% endif %}
                                 </div>
                             {% endif %}
                             {% if appt.notes %}

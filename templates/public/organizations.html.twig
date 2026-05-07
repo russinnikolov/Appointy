@@ -1,0 +1,71 @@
+{% extends 'base.html.twig' %}
+{% block title %}Browse Organizations — Appointy{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Browse Organizations</h4>
+        <p class="text-muted small mb-0">Find a business and book your appointment</p>
+    </div>
+</div>
+
+<form method="get" class="mb-4">
+    <div class="input-group">
+        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" name="q" class="form-control border-start-0 ps-0"
+               value="{{ search }}" placeholder="Search by name, category or description…" autofocus>
+        <button type="submit" class="btn btn-primary px-4">Search</button>
+        {% if search %}
+            <a href="{{ path('public_organizations') }}" class="btn btn-outline-secondary">Clear</a>
+        {% endif %}
+    </div>
+</form>
+
+{% if organizations is empty %}
+    <div class="card p-5 text-center">
+        <div style="font-size:3rem; color:#d1d5db"><i class="bi bi-building-slash"></i></div>
+        <h5 class="fw-semibold mt-3 mb-1">No organizations found</h5>
+        <p class="text-muted small">Try a different search term.</p>
+    </div>
+{% else %}
+    <div class="row g-3">
+        {% for org in organizations %}
+            <div class="col-md-6 col-lg-4">
+                <a href="{{ path('public_organization', {id: org.id}) }}" class="text-decoration-none">
+                    <div class="card h-100 p-3 h-100" style="transition:.15s;cursor:pointer"
+                         onmouseover="this.style.boxShadow='0 4px 20px rgba(99,102,241,.15)'"
+                         onmouseout="this.style.boxShadow=''">
+                        <div class="d-flex align-items-start justify-content-between mb-2">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width:42px;height:42px;background:#ede9fe;color:#6366f1;font-size:1.2rem">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            {% if org.category %}
+                                <span class="badge bg-light text-secondary border small">{{ org.category }}</span>
+                            {% endif %}
+                        </div>
+                        <h6 class="fw-bold mb-1 text-dark">{{ org.name }}</h6>
+                        {% if org.address %}
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-geo-alt me-1"></i>{{ org.address }}
+                            </p>
+                        {% endif %}
+                        {% if org.description %}
+                            <p class="text-muted small mb-2 flex-grow-1"
+                               style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">
+                                {{ org.description }}
+                            </p>
+                        {% endif %}
+                        <div class="mt-auto pt-2">
+                            <span class="text-primary small fw-semibold">
+                                <i class="bi bi-people me-1"></i>
+                                {{ org.employees|filter(e => e.isActive)|length }} employee(s)
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}
