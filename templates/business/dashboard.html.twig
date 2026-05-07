@@ -308,10 +308,13 @@ function buildCalendarBtn(a) {
 function addToCalendar(id) {
     const a = appointments.find(x => x.id === id);
     if (!a) return;
-    if (/Android/i.test(navigator.userAgent)) {
-        window.open(googleCalUrl(a), '_blank', 'noopener');
-    } else {
+    const ua = navigator.userAgent;
+    const isIOS       = /iPhone|iPad|iPod/i.test(ua);
+    const isMacSafari = /Macintosh/i.test(ua) && /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|Edg/i.test(ua);
+    if (isIOS || isMacSafari) {
         window.location.href = icalUrl(id);
+    } else {
+        window.open(googleCalUrl(a), '_blank', 'noopener');
     }
 }
 
