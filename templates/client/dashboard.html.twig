@@ -114,6 +114,8 @@
 const appointments  = {{ appointments_json|raw }};
 const cancelUrlTpl  = `{{ path('client_cancel', {id: '__ID__'}) }}`;
 const cancelUrl     = id => cancelUrlTpl.replace('__ID__', id);
+const icalUrlTpl    = `{{ path('appointment_ical', {id: '__ID__'}) }}`;
+const icalUrl       = id => icalUrlTpl.replace('__ID__', id);
 
 const DAY_ABBR    = {{ dayAbbr|json_encode|raw }};
 const MONTH_NAMES = {{ monthNames|json_encode|raw }};
@@ -130,6 +132,9 @@ const T = {
     cancelYes:         {{ 'business.cancel.yes'|trans|json_encode|raw }},
     cancelKeep:        {{ 'business.cancel.keep'|trans|json_encode|raw }},
     noApptsWeek:       {{ 'client.no_this_week'|trans|json_encode|raw }},
+    addToCalendar:     {{ 'cal.add_to_calendar'|trans|json_encode|raw }},
+    addIcal:           {{ 'cal.add_ical'|trans|json_encode|raw }},
+    addGoogle:         {{ 'cal.add_google'|trans|json_encode|raw }},
 };
 
 let windowStart  = startOfWeek();
@@ -227,6 +232,9 @@ function openModal(id) {
     document.getElementById('modalBody').innerHTML = body;
 
     let footer = `<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">${T.close}</button>`;
+    if (a.status === 'confirmed') {
+        footer += buildCalendarBtn(a);
+    }
     if (a.status === 'pending') {
         footer += `<button type="button" class="btn btn-danger btn-sm" onclick="doCancel(${a.id},'${a.org_name.replace(/'/g,"\\'")}')">
             <i class="bi bi-x-lg me-1"></i>${T.cancel}</button>`;
@@ -234,6 +242,33 @@ function openModal(id) {
     document.getElementById('modalFooter').innerHTML = footer;
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('apptModal')).show();
+}
+
+function buildCalendarBtn(a) {
+    return `<button type="button" class="btn btn-outline-success btn-sm" onclick="addToCalendar(${a.id})">
+        <i class="bi bi-calendar-plus me-1"></i>${T.addToCalendar}
+    </button>`;
+}
+
+function addToCalendar(id) {
+    const a = appointments.find(x => x.id === id);
+    if (!a) return;
+    if (/Android/i.test(navigator.userAgent)) {
+        window.open(googleCalUrl(a), '_blank', 'noopener');
+    } else {
+        window.location.href = icalUrl(id);
+    }
+}
+
+function googleCalUrl(a) {
+    const [y, mo, d] = a.date.split('-');
+    const [h, mi]    = a.time.split(':');
+    const startDt    = `${y}${mo}${d}T${h}${mi}00`;
+    const endH       = String(parseInt(h, 10) + 1).padStart(2, '0');
+    const endDt      = `${y}${mo}${d}T${endH}${mi}00`;
+    const text       = encodeURIComponent((a.org_name || '') + (a.employee ? ' — ' + a.employee : ''));
+    const details    = encodeURIComponent(a.notes || '');
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${startDt}/${endDt}&details=${details}`;
 }
 
 async function doCancel(id, orgName) {

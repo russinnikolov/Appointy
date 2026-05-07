@@ -148,6 +148,9 @@ const DAY_ABBR   = {{ dayAbbr|json_encode|raw }};
 const DAY_NAMES  = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 const MONTH_NAMES = {{ monthNames|json_encode|raw }};
 
+const icalUrlTpl = `{{ path('appointment_ical', {id: '__ID__'}) }}`;
+const icalUrl    = id => icalUrlTpl.replace('__ID__', id);
+
 const T = {
     pending:              {{ 'status.pending'|trans|json_encode|raw }},
     confirmed:            {{ 'status.confirmed'|trans|json_encode|raw }},
@@ -164,6 +167,9 @@ const T = {
     noWorkingHours:       {{ 'business.no_working_hours'|trans|json_encode|raw }},
     setWorkingHours:      {{ 'business.set_working_hours'|trans|json_encode|raw }},
     noApptsWeek:          {{ 'business.no_appts_week'|trans|json_encode|raw }},
+    addToCalendar:        {{ 'cal.add_to_calendar'|trans|json_encode|raw }},
+    addIcal:              {{ 'cal.add_ical'|trans|json_encode|raw }},
+    addGoogle:            {{ 'cal.add_google'|trans|json_encode|raw }},
 };
 
 let windowStart  = startOfWeek();
@@ -284,12 +290,40 @@ function openModal(id) {
         footer += `<button type="button" class="btn btn-danger btn-sm" onclick="doCancel(${a.id},'${a.booker_name.replace(/'/g,"\\'")}',0)">
             <i class="bi bi-x-lg me-1"></i>${T.cancel}</button>`;
     } else if (a.status === 'confirmed') {
+        footer += buildCalendarBtn(a);
         footer += `<button type="button" class="btn btn-danger btn-sm" onclick="doCancel(${a.id},'${a.booker_name.replace(/'/g,"\\'")}',1)">
             <i class="bi bi-x-lg me-1"></i>${T.cancel}</button>`;
     }
     document.getElementById('modalFooter').innerHTML = footer;
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('apptModal')).show();
+}
+
+function buildCalendarBtn(a) {
+    return `<button type="button" class="btn btn-outline-success btn-sm" onclick="addToCalendar(${a.id})">
+        <i class="bi bi-calendar-plus me-1"></i>${T.addToCalendar}
+    </button>`;
+}
+
+function addToCalendar(id) {
+    const a = appointments.find(x => x.id === id);
+    if (!a) return;
+    if (/Android/i.test(navigator.userAgent)) {
+        window.open(googleCalUrl(a), '_blank', 'noopener');
+    } else {
+        window.location.href = icalUrl(id);
+    }
+}
+
+function googleCalUrl(a) {
+    const [y, mo, d] = a.date.split('-');
+    const [h, mi]    = a.time.split(':');
+    const startDt    = `${y}${mo}${d}T${h}${mi}00`;
+    const endH       = String(parseInt(h, 10) + 1).padStart(2, '0');
+    const endDt      = `${y}${mo}${d}T${endH}${mi}00`;
+    const text       = encodeURIComponent(a.booker_name + (a.employee_name ? ' — ' + a.employee_name : ''));
+    const details    = encodeURIComponent(a.notes || '');
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${startDt}/${endDt}&details=${details}`;
 }
 
 function doConfirm(id) {

@@ -282,6 +282,11 @@ public.booking_confirmed.your_name: 'Your Name'
 public.booking_confirmed.phone: 'Phone'
 public.booking_confirmed.browse: 'Browse More Organizations'
 
+# ── Calendar export ──
+cal.add_to_calendar: 'Add to Calendar'
+cal.add_ical: 'Apple / Outlook (.ics)'
+cal.add_google: 'Google Calendar'
+
 # ── Public ──
 public.book.back: 'Back to'
 public.book.book_with: 'Book with'

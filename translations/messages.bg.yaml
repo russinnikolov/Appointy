@@ -282,6 +282,11 @@ public.booking_confirmed.your_name: 'Вашето Име'
 public.booking_confirmed.phone: 'Телефон'
 public.booking_confirmed.browse: 'Разгледай Повече Организации'
 
+# ── Calendar export ──
+cal.add_to_calendar: 'Добави в Календар'
+cal.add_ical: 'Apple / Outlook (.ics)'
+cal.add_google: 'Google Календар'
+
 # ── Public ──
 public.book.back: 'Назад към'
 public.book.book_with: 'Запиши при'
