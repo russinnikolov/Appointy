@@ -9,3 +9,13 @@
 
 controllers:
     resource: routing.controllers
+
+nelmio_api_doc:
+    resource: '@NelmioApiDocBundle/config/routing/swaggerui.php'
+    prefix: /api/docs
+
+nelmio_api_doc_json:
+    path: /api/docs.json
+    methods: [GET]
+    defaults:
+        _controller: nelmio_api_doc.controller.swagger
