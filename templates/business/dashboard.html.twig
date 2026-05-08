@@ -16,7 +16,7 @@
 .cal-day-th.today .d-num { background: #6366f1; color: #fff; }
 
 .cal-time-td { font-size: .7rem; color: #9ca3af; text-align: right; padding: 0 8px; white-space: nowrap; vertical-align: top; padding-top: 6px; width: 58px; background: #fff; }
-.cal-day-td  { vertical-align: top; padding: 3px; min-height: 48px; height: 52px; }
+.cal-day-td  { vertical-align: top; padding: 3px; min-height: 52px; }
 .cal-day-td.closed { background: repeating-linear-gradient(135deg, #f9fafb 0, #f9fafb 4px, #fff 4px, #fff 12px); }
 
 .cal-appt { border-radius: 6px; padding: 4px 7px; font-size: .75rem; font-weight: 600; cursor: pointer; margin-bottom: 2px; line-height: 1.3; transition: opacity .1s, transform .1s; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -24,6 +24,9 @@
 .cal-appt.pending   { background: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
 .cal-appt.confirmed { background: #d1fae5; color: #065f46; border-left: 3px solid #10b981; }
 .cal-appt.cancelled { background: #f3f4f6; color: #9ca3af; border-left: 3px solid #d1d5db; opacity: .6; }
+
+.cal-day-td.blocked { background: repeating-linear-gradient(135deg, #fee2e2 0, #fee2e2 4px, #fff 4px, #fff 12px); }
+.block-label { font-size: .65rem; color: #991b1b; font-weight: 600; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* week nav */
 .week-nav { display: flex; align-items: center; gap: 10px; }
@@ -38,7 +41,7 @@
     <div>
         <h4 class="fw-bold mb-0">{{ organization.name }}</h4>
         <p class="text-muted small mb-0">
-            {{ organization.category }}{% if organization.category and organization.address %} · {% endif %}{{ organization.address }}
+            {% if organization.category %}{{ ('category.' ~ organization.category)|trans }}{% endif %}{% if organization.category and organization.address %} · {% endif %}{{ organization.address }}
         </p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
@@ -84,8 +87,11 @@
         <span class="fw-semibold" id="weekLabel" style="min-width:160px;text-align:center"></span>
         <button class="week-nav-btn" id="nextWeek"><i class="bi bi-chevron-right"></i></button>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-sm btn-outline-secondary" id="todayBtn">{{ 'common.today'|trans }}</button>
+        <button class="btn btn-sm btn-outline-secondary" id="collapseBtn">
+            <i class="bi bi-arrows-collapse me-1"></i><span id="collapseBtnLabel">{{ 'dashboard.collapse'|trans }}</span>
+        </button>
         <div class="btn-group btn-group-sm" role="group">
             <button type="button" class="btn btn-outline-secondary filter-btn active" data-filter="all">{{ 'common.all'|trans }}</button>
             <button type="button" class="btn btn-outline-warning filter-btn" data-filter="pending">{{ 'status.pending'|trans }}</button>
@@ -138,11 +144,13 @@
 ] %}
 <script>
 const appointments  = {{ appointments_json|raw }};
+const blockedPeriods = {{ blocked_json|raw }};
 const workingHours  = {{ organization.workingHours|json_encode|raw }};
 const timeStep      = {{ organization.timeStep }};
 
-const confirmUrl = id => `{{ path('business_confirm', {id: '__ID__'}) }}`.replace('__ID__', id);
-const cancelUrl  = id => `{{ path('business_cancel',  {id: '__ID__'}) }}`.replace('__ID__', id);
+const confirmUrl  = id => `{{ path('business_confirm',    {id: '__ID__'}) }}`.replace('__ID__', id);
+const cancelUrl   = id => `{{ path('business_cancel',     {id: '__ID__'}) }}`.replace('__ID__', id);
+const durationUrl = id => `{{ path('business_set_duration',{id: '__ID__'}) }}`.replace('__ID__', id);
 
 const DAY_ABBR   = {{ dayAbbr|json_encode|raw }};
 const DAY_NAMES  = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -170,7 +178,16 @@ const T = {
     addToCalendar:        {{ 'cal.add_to_calendar'|trans|json_encode|raw }},
     addIcal:              {{ 'cal.add_ical'|trans|json_encode|raw }},
     addGoogle:            {{ 'cal.add_google'|trans|json_encode|raw }},
+    collapse:             {{ 'dashboard.collapse'|trans|json_encode|raw }},
+    expand:               {{ 'dashboard.expand'|trans|json_encode|raw }},
+    duration:             {{ 'appt.duration'|trans|json_encode|raw }},
+    durationMin:          {{ 'appt.duration_min'|trans|json_encode|raw }},
+    durationDefault:      {{ 'appt.duration_default'|trans|json_encode|raw }},
+    conflictTitle:        {{ 'appt.conflict_title'|trans|json_encode|raw }},
+    conflictText:         {{ 'appt.conflict_text'|trans|json_encode|raw }},
+    conflictConfirm:      {{ 'appt.conflict_confirm'|trans|json_encode|raw }},
 };
+let collapseEmpty = false;
 
 let windowStart  = startOfWeek();
 let activeFilter = 'all';
@@ -186,6 +203,19 @@ function addDays(d, n)  { const r = new Date(d); r.setDate(r.getDate() + n); ret
 function isoDate(d)     { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
 const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+
+function getBlockInfo(dateStr, tsMin) {
+    for (const b of blockedPeriods) {
+        if (b.date !== dateStr || b.employee_id !== null) continue;
+        const s = toMin(b.start), e = toMin(b.end);
+        if (tsMin < s || tsMin >= e) continue;
+        const firstSlot = Math.ceil(s / timeStep) * timeStep;
+        const lastSlot  = Math.floor((e - 1) / timeStep) * timeStep;
+        const mid = firstSlot + Math.floor((lastSlot - firstSlot) / timeStep / 2) * timeStep;
+        return { label: tsMin === mid ? (b.label || '🚫') : null };
+    }
+    return null;
+}
 
 function visibleAppointments() {
     if (activeFilter === 'all') return appointments;
@@ -214,6 +244,24 @@ function renderCalendar() {
         idx[a.date][a.time].push(a);
     });
 
+    // Pre-compute rowspans (non-cancelled appts with duration > 1 slot span multiple rows)
+    const rsMap   = {}; // { dateStr: { timeStr: rowspan } }
+    const covered = {}; // { dateStr: Set<timeStr> } — cells swallowed by a rowspan above
+    appts.forEach(a => {
+        if (a.status === 'cancelled') return;
+        const rs = Math.max(1, Math.ceil((a.duration_minutes || timeStep) / timeStep));
+        if (rs <= 1) return;
+        const existing = rsMap[a.date]?.[a.time] || 1;
+        (rsMap[a.date] ??= {})[a.time] = Math.max(existing, rs);
+    });
+    Object.entries(rsMap).forEach(([date, times]) => {
+        Object.entries(times).forEach(([time, rs]) => {
+            const startMin = toMin(time);
+            (covered[date] ??= new Set());
+            for (let i = 1; i < rs; i++) covered[date].add(toStr(startMin + i * timeStep));
+        });
+    });
+
     let html = '<table class="cal-table w-100"><thead><tr>';
     html += '<th class="cal-time-th"></th>';
     days.forEach(d => {
@@ -237,18 +285,32 @@ function renderCalendar() {
     } else {
         for (let t = minOpen; t < maxClose; t += timeStep) {
             const ts = toStr(t);
+            if (collapseEmpty && !days.some(d => (idx[isoDate(d)]?.[ts] || []).length > 0)) continue;
             html += '<tr>';
             html += `<td class="cal-time-td">${ts}</td>`;
             days.forEach(d => {
-                const dayName  = DAY_NAMES[d.getDay()];
-                const cfg      = workingHours[dayName];
-                const isClosed = !cfg || !cfg.enabled || t < toMin(cfg.open) || t >= toMin(cfg.close);
-                const cell     = idx[isoDate(d)]?.[ts] || [];
+                const dateStr  = isoDate(d);
+                // Skip cells consumed by a rowspan from an earlier slot
+                if (covered[dateStr]?.has(ts)) return;
+
+                const dayName   = DAY_NAMES[d.getDay()];
+                const cfg       = workingHours[dayName];
+                const isClosed  = !cfg || !cfg.enabled || t < toMin(cfg.open) || t >= toMin(cfg.close);
+                const blockInfo = getBlockInfo(dateStr, t);
+                const cell      = idx[dateStr]?.[ts] || [];
+                const rs        = rsMap[dateStr]?.[ts] || 1;
+                const rsAttr    = rs > 1 ? ` rowspan="${rs}"` : '';
+
                 let pills = '';
+                if (blockInfo?.label) pills += `<div class="block-label" title="${blockInfo.label}">${blockInfo.label}</div>`;
                 cell.forEach(a => {
-                    pills += `<div class="cal-appt ${a.status}" onclick="openModal(${a.id})" title="${a.booker_name}">${a.booker_name}</div>`;
+                    const dur      = a.duration_minutes || timeStep;
+                    const durLabel = dur !== timeStep
+                        ? ` <span style="opacity:.7;font-size:.65rem">${dur}${T.durationMin}</span>` : '';
+                    pills += `<div class="cal-appt ${a.status}" data-dur="${dur}" onclick="openModal(${a.id})" title="${a.booker_name}">${a.booker_name}${durLabel}</div>`;
                 });
-                html += `<td class="cal-day-td${isClosed ? ' closed' : ''}">${pills}</td>`;
+                const classes = ['cal-day-td', isClosed ? 'closed' : '', blockInfo ? 'blocked' : ''].filter(Boolean).join(' ');
+                html += `<td class="${classes}"${rsAttr}>${pills}</td>`;
             });
             html += '</tr>';
         }
@@ -256,6 +318,21 @@ function renderCalendar() {
 
     html += '</tbody></table>';
     document.getElementById('calInner').innerHTML = html;
+
+    // Stretch spanning pills to fill their rowspan height
+    requestAnimationFrame(() => {
+        const refRow = document.querySelector('.cal-time-td');
+        if (!refRow) return;
+        const rowH = refRow.offsetHeight;
+        document.querySelectorAll('.cal-appt[data-dur]').forEach(pill => {
+            const slots = Math.ceil(+pill.dataset.dur / timeStep);
+            if (slots <= 1) return;
+            pill.style.minHeight   = (slots * rowH - 8) + 'px';
+            pill.style.whiteSpace  = 'normal';
+            pill.style.overflow    = 'hidden';
+            pill.style.alignItems  = 'flex-start';
+        });
+    });
 }
 
 function openModal(id) {
@@ -269,8 +346,30 @@ function openModal(id) {
         a.booker_name + (a.guest ? ` <span class="badge bg-light text-secondary border ms-1" style="font-size:.65rem">${T.guest}</span>` : '');
     document.getElementById('modalMeta').textContent = a.date + ' · ' + a.time;
 
+    const messagingCfg = {
+        whatsapp: { icon: 'bi-whatsapp',  color: '#25D366', label: 'WhatsApp', url: p => `https://wa.me/${p.replace(/\D/g,'')}` },
+        telegram: { icon: 'bi-telegram',  color: '#229ED9', label: 'Telegram', url: p => `tg://resolve?phone=+${p.replace(/\D/g,'')}` },
+        viber:    { icon: 'bi-phone',     color: '#7360f2', label: 'Viber',    url: p => `viber://chat?number=${encodeURIComponent(p)}` },
+        sms:      { icon: 'bi-chat-dots', color: '#6b7280', label: 'SMS',      url: p => `sms:${p}` },
+    };
+
     let body = `<div class="d-flex flex-column gap-2 small">`;
-    if (a.booker_phone) body += `<div><i class="bi bi-telephone me-2 text-muted"></i>${a.booker_phone}</div>`;
+    if (a.booker_phone) {
+        const msgIcons = (a.messaging_apps || []).map(app => {
+            const cfg = messagingCfg[app];
+            if (!cfg) return '';
+            return `<a href="${cfg.url(a.booker_phone)}" target="_blank" rel="noopener"
+                       title="${cfg.label}" class="text-decoration-none"
+                       style="font-size:1.4rem;line-height:1;color:${cfg.color}">
+                       <i class="bi ${cfg.icon}"></i>
+                    </a>`;
+        }).join('');
+        body += `<div class="d-flex align-items-center gap-2">
+            <i class="bi bi-telephone text-muted"></i>
+            <span>${a.booker_phone}</span>
+            ${msgIcons ? `<span class="d-flex gap-2 ms-1">${msgIcons}</span>` : ''}
+        </div>`;
+    }
     if (a.employee_name) {
         body += `<div><i class="bi bi-person-badge me-2 text-muted"></i>${a.employee_name}`;
         if (a.employee_role) body += ` <span class="text-muted">(${a.employee_role})</span>`;
@@ -280,6 +379,25 @@ function openModal(id) {
     body += `<div><i class="bi bi-circle-fill me-2" style="color:var(--bs-${statusClass[a.status]});font-size:.5rem;vertical-align:middle"></i>
         <span class="badge bg-${statusClass[a.status]}-subtle text-${statusClass[a.status]}-emphasis border border-${statusClass[a.status]}-subtle">${statusLabel[a.status]}</span></div>`;
     if (a.cancel_note) body += `<div class="text-muted fst-italic"><i class="bi bi-info-circle me-2"></i>${a.cancel_note}</div>`;
+
+    if (a.status !== 'cancelled') {
+        const cur    = a.duration_minutes || timeStep;
+        const maxDur = getMaxDurationMins(a);
+        const opts   = [];
+        for (let m = timeStep; m <= maxDur; m += timeStep) {
+            opts.push(`<option value="${m}" ${m === cur ? 'selected' : ''}>${m} ${T.durationMin}</option>`);
+        }
+        if (cur > maxDur) opts.push(`<option value="${cur}" selected>${cur} ${T.durationMin}</option>`);
+        body += `<div class="d-flex align-items-center gap-2 mt-2 pt-2 border-top">
+            <i class="bi bi-hourglass-split text-muted" style="font-size:.85rem"></i>
+            <span class="small">${T.duration}:</span>
+            <select id="durationSelect" class="form-select form-select-sm" style="width:auto" onchange="onDurationChange(${a.id}, this.value)">
+                ${opts.join('')}
+            </select>
+            <span class="text-muted small" id="durationSaved" style="display:none">✓</span>
+        </div>`;
+    }
+
     body += `</div>`;
     document.getElementById('modalBody').innerHTML = body;
 
@@ -359,6 +477,80 @@ async function doCancel(id, name, confirmed) {
     }
 }
 
+// Returns max selectable duration (mins) based on the next confirmed appt for same employee/day
+function getMaxDurationMins(a) {
+    const startMin = toMin(a.time);
+    let nextMin = Infinity;
+    appointments.forEach(other => {
+        if (other.id === a.id || other.date !== a.date || other.status !== 'confirmed') return;
+        if (a.employee_id && other.employee_id && a.employee_id !== other.employee_id) return;
+        const oMin = toMin(other.time);
+        if (oMin > startMin) nextMin = Math.min(nextMin, oMin);
+    });
+    const gap = nextMin === Infinity ? 240 : (nextMin - startMin);
+    return Math.max(timeStep, Math.floor(gap / timeStep) * timeStep);
+}
+
+// Returns pending appointments that fall within [appt.time, appt.time + newDurMins)
+function getOverlappingPending(a, newDurMins) {
+    const startMin = toMin(a.time);
+    const endMin   = startMin + newDurMins;
+    return appointments.filter(other => {
+        if (other.id === a.id || other.date !== a.date || other.status !== 'pending') return false;
+        if (a.employee_id && other.employee_id && a.employee_id !== other.employee_id) return false;
+        const oMin = toMin(other.time);
+        return oMin >= startMin && oMin < endMin;
+    });
+}
+
+async function onDurationChange(id, minutes) {
+    const a = appointments.find(x => x.id === id);
+    if (!a) return;
+    minutes = +minutes;
+    const overlapping = getOverlappingPending(a, minutes);
+    if (overlapping.length > 0) {
+        const items = overlapping.map(o => `<li>${o.booker_name} — ${o.time}</li>`).join('');
+        const result = await Swal.fire({
+            title: T.conflictTitle,
+            html: `<p class="text-muted small mb-2">${T.conflictText}</p><ul class="text-start small mb-0">${items}</ul>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: T.conflictConfirm,
+            confirmButtonColor: '#dc3545',
+            cancelButtonText: T.close,
+            reverseButtons: true,
+        });
+        if (!result.isConfirmed) {
+            // Revert the select to the current saved duration
+            const sel = document.getElementById('durationSelect');
+            if (sel) sel.value = a.duration_minutes || timeStep;
+            return;
+        }
+        await saveDuration(id, minutes, overlapping.map(o => o.id));
+    } else {
+        await saveDuration(id, minutes, []);
+    }
+}
+
+async function saveDuration(id, minutes, cancelIds = []) {
+    const body = new URLSearchParams({ minutes });
+    cancelIds.forEach(cid => body.append('cancel_ids[]', cid));
+    const resp = await fetch(durationUrl(id), { method: 'POST', body });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const a = appointments.find(x => x.id === id);
+    if (a) a.duration_minutes = data.duration_minutes;
+    if (data.cancelled?.length) {
+        data.cancelled.forEach(cid => {
+            const other = appointments.find(x => x.id === cid);
+            if (other) other.status = 'cancelled';
+        });
+    }
+    const saved = document.getElementById('durationSaved');
+    if (saved) { saved.style.display = ''; setTimeout(() => saved.style.display = 'none', 1500); }
+    renderCalendar();
+}
+
 document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -380,6 +572,14 @@ document.getElementById('nextWeek').addEventListener('click', () => {
 });
 document.getElementById('todayBtn').addEventListener('click', () => {
     windowStart = startOfWeek();
+    renderCalendar();
+});
+document.getElementById('collapseBtn').addEventListener('click', () => {
+    collapseEmpty = !collapseEmpty;
+    const btn   = document.getElementById('collapseBtn');
+    const label = document.getElementById('collapseBtnLabel');
+    label.textContent = collapseEmpty ? T.expand : T.collapse;
+    btn.querySelector('i').className = collapseEmpty ? 'bi bi-arrows-expand me-1' : 'bi bi-arrows-collapse me-1';
     renderCalendar();
 });
 

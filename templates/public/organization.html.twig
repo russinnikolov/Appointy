@@ -3,21 +3,27 @@
 
 {% block body %}
 <a href="{{ path('public_organizations') }}" class="btn btn-link text-muted ps-0 mb-3 small">
-    <i class="bi bi-arrow-left me-1"></i>Back to organizations
+    <i class="bi bi-arrow-left me-1"></i>{{ 'book.back_to_orgs'|trans }}
 </a>
 
 {# Org header #}
 <div class="card p-4 mb-4">
     <div class="d-flex align-items-start gap-3 flex-wrap">
-        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-             style="width:64px;height:64px;background:#ede9fe;color:#6366f1;font-size:2rem">
-            <i class="bi bi-building"></i>
-        </div>
+        {% if organization.logoFilename %}
+            <img src="/uploads/logos/{{ organization.logoFilename }}" alt="{{ organization.name }}"
+                 class="rounded-circle flex-shrink-0"
+                 style="width:64px;height:64px;object-fit:cover;border:1px solid #e5e7eb">
+        {% else %}
+            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                 style="width:64px;height:64px;background:#ede9fe;color:#6366f1;font-size:2rem">
+                <i class="bi bi-building"></i>
+            </div>
+        {% endif %}
         <div class="flex-grow-1">
             <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                 <h4 class="fw-bold mb-0">{{ organization.name }}</h4>
                 {% if organization.category %}
-                    <span class="badge bg-light text-secondary border">{{ organization.category }}</span>
+                    <span class="badge bg-light text-secondary border">{{ ('category.' ~ organization.category)|trans }}</span>
                 {% endif %}
             </div>
             {% if organization.address %}
@@ -37,12 +43,12 @@
 </div>
 
 {# Employees #}
-<h5 class="fw-bold mb-3"><i class="bi bi-people me-2"></i>Our Team</h5>
+<h5 class="fw-bold mb-3"><i class="bi bi-people me-2"></i>{{ 'org.our_team'|trans }}</h5>
 
 {% if employees is empty %}
     <div class="card p-4 text-center text-muted">
         <i class="bi bi-people" style="font-size:2rem"></i>
-        <p class="mt-2 mb-0 small">No employees listed yet.</p>
+        <p class="mt-2 mb-0 small">{{ 'org.no_employees_public'|trans }}</p>
     </div>
 {% else %}
     <div class="row g-3">
@@ -50,10 +56,16 @@
             <div class="col-sm-6 col-lg-4">
                 <div class="card p-3 h-100">
                     <div class="d-flex align-items-center gap-3 mb-2">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                             style="width:44px;height:44px;background:#f3f4f6;color:#6b7280;font-size:1.2rem">
-                            <i class="bi bi-person"></i>
-                        </div>
+                        {% if emp.user and emp.user.avatarFilename %}
+                            <img src="/uploads/avatars/{{ emp.user.avatarFilename }}" alt="{{ emp.name }}"
+                                 class="rounded-circle flex-shrink-0"
+                                 style="width:44px;height:44px;object-fit:cover;border:1px solid #e5e7eb">
+                        {% else %}
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width:44px;height:44px;background:#f3f4f6;color:#6b7280;font-size:1.2rem">
+                                <i class="bi bi-person"></i>
+                            </div>
+                        {% endif %}
                         <div>
                             <div class="fw-semibold">{{ emp.name }}</div>
                             {% if emp.role %}
@@ -67,6 +79,16 @@
                             {{ emp.bio }}
                         </p>
                     {% endif %}
+                    {% if emp.portfolioPhotos %}
+                        <div class="d-flex gap-1 mb-3 overflow-hidden">
+                            {% for photo in emp.portfolioPhotos %}
+                                <img src="/uploads/portfolio/{{ photo }}" alt=""
+                                     class="rounded"
+                                     style="width:52px;height:52px;object-fit:cover;cursor:pointer;flex-shrink:0"
+                                     onclick='openGallery({{ loop.index0 }}, {{ emp.portfolioPhotos|json_encode|raw }})'>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                     {% if emp.phone %}
                         <p class="text-muted small mb-2">
                             <i class="bi bi-telephone me-1"></i>{{ emp.phone }}
@@ -74,11 +96,52 @@
                     {% endif %}
                     <a href="{{ path('public_book', {orgId: organization.id, employeeId: emp.id}) }}"
                        class="btn btn-primary btn-sm w-100 mt-auto">
-                        <i class="bi bi-calendar-plus me-1"></i>Book with {{ emp.name|split(' ')|first }}
+                        <i class="bi bi-calendar-plus me-1"></i>{{ 'org.book_with'|trans({'%name%': emp.name|split(' ')|first}) }}
                     </a>
                 </div>
             </div>
         {% endfor %}
     </div>
 {% endif %}
+
+{# Lightbox modal #}
+<div class="modal fade" id="galleryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark border-0">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-2">
+                <img id="galleryImg" src="" alt="" style="max-height:70vh;max-width:100%;border-radius:8px;object-fit:contain">
+            </div>
+            <div class="modal-footer border-0 justify-content-center pt-0 pb-3 gap-2" id="galleryThumbs"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _photos = [], _idx = 0;
+function openGallery(startIdx, photos) {
+    _photos = photos;
+    _idx    = startIdx;
+    renderGallery();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('galleryModal')).show();
+}
+function renderGallery() {
+    document.getElementById('galleryImg').src = '/uploads/portfolio/' + _photos[_idx];
+    const thumbs = document.getElementById('galleryThumbs');
+    thumbs.innerHTML = _photos.map((p, i) =>
+        `<img src="/uploads/portfolio/${p}" onclick="setGalleryIdx(${i})"
+              style="width:50px;height:50px;object-fit:cover;border-radius:6px;cursor:pointer;opacity:${i===_idx?1:.5};border:2px solid ${i===_idx?'#6366f1':'transparent'}">`
+    ).join('');
+}
+function setGalleryIdx(i) { _idx = i; renderGallery(); }
+document.addEventListener('keydown', e => {
+    if (!document.getElementById('galleryModal').classList.contains('show')) return;
+    if (e.key === 'ArrowRight') setGalleryIdx((_idx + 1) % _photos.length);
+    if (e.key === 'ArrowLeft')  setGalleryIdx((_idx - 1 + _photos.length) % _photos.length);
+});
+</script>
 {% endblock %}

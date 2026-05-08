@@ -17,18 +17,25 @@
     <div class="col-lg-7">
         <div class="card p-4">
             <form method="post" novalidate>
+                {% for msg in app.flashes('success') %}
+                    <div class="alert alert-success py-2 small mb-3"><i class="bi bi-check-circle me-1"></i>{{ msg }}</div>
+                {% endfor %}
+                {% if error %}
+                    <div class="alert alert-danger py-2 small mb-3"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                {% endif %}
                 <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'settings.info.contact_section'|trans }}</p>
 
                 <div class="row g-3 mb-3">
                     <div class="col-6">
                         <label class="form-label fw-semibold small">{{ 'common.phone'|trans }}</label>
                         <input type="tel" name="phone" class="form-control"
-                               value="{{ organization.phone }}" placeholder="+1 555 000 0000">
+                               value="{{ organization.phone }}" placeholder="{{ 'placeholder.org_phone'|trans }}"
+                               pattern="^\+?[\d\s\-\.\(\)]{7,20}$" title="{{ 'validation.phone'|trans }}">
                     </div>
                     <div class="col-6">
                         <label class="form-label fw-semibold small">{{ 'common.email'|trans }}</label>
                         <input type="email" name="email" class="form-control"
-                               value="{{ organization.email }}" placeholder="contact@yourbusiness.com">
+                               value="{{ organization.email }}" placeholder="{{ 'placeholder.org_email'|trans }}">
                     </div>
                 </div>
 
@@ -44,26 +51,26 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">{{ 'settings.info.street_address'|trans }}</label>
                     <input type="text" name="address" id="addressInput" class="form-control"
-                           value="{{ organization.address }}" placeholder="123 Main St">
+                           value="{{ organization.address }}" placeholder="{{ 'placeholder.address'|trans }}">
                 </div>
 
                 <div class="row g-3 mb-3">
                     <div class="col-6">
                         <label class="form-label fw-semibold small">{{ 'common.city'|trans }}</label>
                         <input type="text" name="city" id="cityInput" class="form-control"
-                               value="{{ organization.city }}" placeholder="New York">
+                               value="{{ organization.city }}" placeholder="{{ 'placeholder.city'|trans }}">
                     </div>
                     <div class="col-6">
                         <label class="form-label fw-semibold small">{{ 'common.zip'|trans }}</label>
                         <input type="text" name="zip_code" id="zipInput" class="form-control"
-                               value="{{ organization.zipCode }}" placeholder="10001">
+                               value="{{ organization.zipCode }}" placeholder="{{ 'placeholder.zip'|trans }}">
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">{{ 'common.country'|trans }}</label>
                     <input type="text" name="country" id="countryInput" class="form-control"
-                           value="{{ organization.country }}" placeholder="United States">
+                           value="{{ organization.country }}" placeholder="{{ 'placeholder.country'|trans }}">
                 </div>
 
                 <div class="mb-3">
@@ -78,12 +85,12 @@
                     <div class="row g-2">
                         <div class="col-6">
                             <input type="number" name="latitude" id="latInput" class="form-control form-control-sm"
-                                   step="0.0000001" placeholder="Latitude"
+                                   step="0.0000001" placeholder="{{ 'placeholder.latitude'|trans }}"
                                    value="{{ organization.latitude }}">
                         </div>
                         <div class="col-6">
                             <input type="number" name="longitude" id="lngInput" class="form-control form-control-sm"
-                                   step="0.0000001" placeholder="Longitude"
+                                   step="0.0000001" placeholder="{{ 'placeholder.longitude'|trans }}"
                                    value="{{ organization.longitude }}">
                         </div>
                     </div>

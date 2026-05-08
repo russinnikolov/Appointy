@@ -58,6 +58,12 @@ class Organization
     #[ORM\Column(type: 'integer', options: ['default' => 15])]
     private int $timeStep = 15;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $nonstop = false;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $logoFilename = null;
+
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: User::class)]
     private Collection $users;
 
@@ -103,6 +109,9 @@ class Organization
     /** Returns array of PHP day-of-week numbers (0=Sun…6=Sat) that are disabled. */
     public function getDisabledWeekdays(): array
     {
+        if ($this->nonstop) {
+            return [];
+        }
         $phpDayMap = [
             'sunday' => 0, 'monday' => 1, 'tuesday' => 2, 'wednesday' => 3,
             'thursday' => 4, 'friday' => 5, 'saturday' => 6,
@@ -164,6 +173,12 @@ class Organization
 
     public function getTimeStep(): int { return $this->timeStep; }
     public function setTimeStep(int $v): static { $this->timeStep = $v; return $this; }
+
+    public function isNonstop(): bool { return $this->nonstop; }
+    public function setNonstop(bool $v): static { $this->nonstop = $v; return $this; }
+
+    public function getLogoFilename(): ?string { return $this->logoFilename; }
+    public function setLogoFilename(?string $v): static { $this->logoFilename = $v; return $this; }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }

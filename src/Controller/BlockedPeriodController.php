@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[IsGranted('ROLE_BUSINESS')]
 #[Route('/business/blocked-times')]
@@ -22,7 +23,8 @@ class BlockedPeriodController extends AbstractController
         Request $request,
         BlockedPeriodRepository $repo,
         EmployeeRepository $empRepo,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        TranslatorInterface $t
     ): Response {
         /** @var User $user */
         $user = $this->getUser();
@@ -63,7 +65,7 @@ class BlockedPeriodController extends AbstractController
                 $em->persist($block);
                 $em->flush();
 
-                $this->addFlash('success', 'Blocked period added.');
+                $this->addFlash('success', $t->trans('flash.blocked_added'));
                 return $this->redirectToRoute('business_blocked_times');
             }
         }
@@ -77,7 +79,7 @@ class BlockedPeriodController extends AbstractController
     }
 
     #[Route('/{id}/delete', name: 'business_blocked_delete', methods: ['POST'])]
-    public function delete(int $id, BlockedPeriodRepository $repo, EntityManagerInterface $em): Response
+    public function delete(int $id, BlockedPeriodRepository $repo, EntityManagerInterface $em, TranslatorInterface $t): Response
     {
         /** @var User $user */
         $user  = $this->getUser();
@@ -86,7 +88,7 @@ class BlockedPeriodController extends AbstractController
         if ($block && $block->getOrganization() === $user->getOrganization()) {
             $em->remove($block);
             $em->flush();
-            $this->addFlash('success', 'Blocked period removed.');
+            $this->addFlash('success', $t->trans('flash.blocked_removed'));
         }
 
         return $this->redirectToRoute('business_blocked_times');

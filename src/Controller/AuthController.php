@@ -12,6 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
+use App\Util\PhoneValidator;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class AuthController extends AbstractController
 {
@@ -36,7 +38,8 @@ class AuthController extends AbstractController
         Request $request,
         UserPasswordHasherInterface $hasher,
         EntityManagerInterface $em,
-        UserRepository $userRepo
+        UserRepository $userRepo,
+        TranslatorInterface $t
     ): Response {
         if ($this->getUser()) {
             return $this->redirectToRoute('post_login');
@@ -55,6 +58,8 @@ class AuthController extends AbstractController
 
             if (!$name || !$email || !$pass) {
                 $error = 'Please fill in all required fields.';
+            } elseif ($phone && !PhoneValidator::isValid($phone)) {
+                $error = 'Please enter a valid phone number.';
             } elseif ($pass !== $conf) {
                 $error = 'Passwords do not match.';
             } elseif (strlen($pass) < 8) {
@@ -62,11 +67,17 @@ class AuthController extends AbstractController
             } elseif ($userRepo->findOneBy(['email' => $email])) {
                 $error = 'This email is already registered.';
             } else {
+                $apps = array_intersect(
+                    $request->request->all('messaging_apps'),
+                    User::MESSAGING_APPS
+                );
+
                 $user = new User();
                 $user->setName($name)
                      ->setEmail($email)
                      ->setPhone($phone ?: null)
                      ->setType($type)
+                     ->setMessagingApps(array_values($apps))
                      ->setPassword($hasher->hashPassword($user, $pass));
 
                 if ($type === User::TYPE_BUSINESS) {
@@ -79,6 +90,9 @@ class AuthController extends AbstractController
 
                     if (!$orgName) {
                         $error = 'Please enter your organization name.';
+                        goto render;
+                    } elseif ($orgPhone && !PhoneValidator::isValid($orgPhone)) {
+                        $error = 'Please enter a valid organization phone number.';
                         goto render;
                     }
 
@@ -104,7 +118,7 @@ class AuthController extends AbstractController
                 $em->persist($user);
                 $em->flush();
 
-                $this->addFlash('success', 'Account created! You can now log in.');
+                $this->addFlash('success', $t->trans('flash.account_created'));
                 return $this->redirectToRoute('login');
             }
         }

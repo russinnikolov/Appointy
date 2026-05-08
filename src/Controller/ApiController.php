@@ -32,7 +32,8 @@ class ApiController extends AbstractController
             return $this->json(['booked' => [], 'blocked' => []]);
         }
 
-        $booked  = $apptRepo->findBusySlots($employee, $date);
+        $timeStep = $employee->getOrganization()->getTimeStep();
+        $booked   = $apptRepo->findBusySlots($employee, $date, $timeStep);
         $periods = $blockedRepo->findForEmployee($employee->getOrganization(), $employee, $date);
 
         $blocked = array_map(static fn($p) => [

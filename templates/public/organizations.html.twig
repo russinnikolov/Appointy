@@ -49,12 +49,18 @@
                 <a href="{{ path('public_organization', {id: org.id}) }}" class="text-decoration-none">
                     <div class="card h-100 p-3 org-card">
                         <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                                 style="width:42px;height:42px;background:#ede9fe;color:#6366f1;font-size:1.2rem">
-                                <i class="bi bi-building"></i>
-                            </div>
+                            {% if org.logoFilename %}
+                                <img src="/uploads/logos/{{ org.logoFilename }}" alt="{{ org.name }}"
+                                     class="rounded-circle flex-shrink-0"
+                                     style="width:42px;height:42px;object-fit:cover;border:1px solid #e5e7eb">
+                            {% else %}
+                                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                     style="width:42px;height:42px;background:#ede9fe;color:#6366f1;font-size:1.2rem">
+                                    <i class="bi bi-building"></i>
+                                </div>
+                            {% endif %}
                             {% if org.category %}
-                                <span class="badge bg-light text-secondary border small">{{ org.category }}</span>
+                                <span class="badge bg-light text-secondary border small">{{ ('category.' ~ org.category)|trans }}</span>
                             {% endif %}
                         </div>
                         <h6 class="fw-bold mb-1 text-dark">{{ org.name }}</h6>
@@ -101,6 +107,7 @@ const orgs = [
         lat:  {{ org.latitude }},
         lng:  {{ org.longitude }},
         url:  {{ path('public_organization', {id: org.id})|json_encode|raw }},
+        logo: {{ org.logoFilename ? ('"/uploads/logos/' ~ org.logoFilename ~ '"')|raw : 'null' }},
         viewBook: {{ 'public.map.view_book'|trans|json_encode|raw }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
@@ -126,10 +133,11 @@ orgs.forEach(org => {
     const m = L.marker([org.lat, org.lng], { icon })
         .addTo(map)
         .bindPopup(`
+            ${org.logo ? `<img src="${org.logo}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-bottom:6px;display:block">` : ''}
             <strong>${org.name}</strong><br>
             ${org.addr ? `<small class="text-muted">${org.addr}</small><br>` : ''}
             <a href="${org.url}" class="btn btn-primary btn-sm mt-2 d-block text-center">${org.viewBook}</a>
-        `, { minWidth: 160 });
+        `, { minWidth: 180 });
 
     m.on('click', () => {
         document.querySelectorAll('.org-card').forEach(c => c.classList.remove('highlighted'));

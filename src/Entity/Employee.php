@@ -45,6 +45,12 @@ class Employee
     #[ORM\Column(type: 'time', nullable: true)]
     private ?\DateTimeInterface $lunchBreakEnd = null;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $workingHours = null;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $portfolioPhotos = null;
+
     /** The user account that belongs to this employee (for employee login). */
     #[ORM\OneToOne(inversedBy: 'employee', cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
@@ -91,6 +97,12 @@ class Employee
 
     public function isActive(): bool { return $this->isActive; }
     public function setIsActive(bool $v): static { $this->isActive = $v; return $this; }
+
+    public function getWorkingHours(): ?array { return $this->workingHours; }
+    public function setWorkingHours(?array $v): static { $this->workingHours = $v; return $this; }
+
+    public function getPortfolioPhotos(): ?array { return $this->portfolioPhotos; }
+    public function setPortfolioPhotos(?array $v): static { $this->portfolioPhotos = $v ?: null; return $this; }
 
     public function getLunchBreakStart(): ?\DateTimeInterface { return $this->lunchBreakStart; }
     public function setLunchBreakStart(?\DateTimeInterface $v): static { $this->lunchBreakStart = $v; return $this; }

@@ -42,11 +42,17 @@
         </a>
 
         <div class="card p-4 p-md-5">
-            <div class="d-flex align-items-center gap-3 mb-4">
-                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                     style="width:52px;height:52px;background:#ede9fe;color:#6366f1;font-size:1.4rem">
-                    <i class="bi bi-person"></i>
-                </div>
+            <div class="d-flex align-items-center gap-3 mb-3">
+                {% if employee.user and employee.user.avatarFilename %}
+                    <img src="/uploads/avatars/{{ employee.user.avatarFilename }}" alt="{{ employee.name }}"
+                         class="rounded-circle flex-shrink-0"
+                         style="width:52px;height:52px;object-fit:cover;border:1px solid #e5e7eb">
+                {% else %}
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:52px;height:52px;background:#ede9fe;color:#6366f1;font-size:1.4rem">
+                        <i class="bi bi-person"></i>
+                    </div>
+                {% endif %}
                 <div>
                     <h5 class="fw-bold mb-0">{{ 'public.book.book_with'|trans }} {{ employee.name }}</h5>
                     <p class="text-muted small mb-0">
@@ -54,6 +60,17 @@
                     </p>
                 </div>
             </div>
+
+            {% if employee.portfolioPhotos %}
+            <div class="d-flex gap-2 flex-wrap mb-4">
+                {% for photo in employee.portfolioPhotos %}
+                    <img src="/uploads/portfolio/{{ photo }}" alt=""
+                         class="rounded"
+                         style="width:64px;height:64px;object-fit:cover;cursor:pointer;border:1px solid #e5e7eb"
+                         onclick="openGallery({{ loop.index0 }})">
+                {% endfor %}
+            </div>
+            {% endif %}
 
             {% if error %}
                 <div class="alert alert-danger py-2 small">
@@ -69,7 +86,7 @@
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-person text-muted"></i></span>
                         <input type="text" name="guest_name" class="form-control border-start-0 ps-0"
-                               value="{{ app.request.request.get('guest_name') }}" required placeholder="John Doe">
+                               value="{{ app.request.request.get('guest_name') }}" required placeholder="{{ 'placeholder.full_name'|trans }}">
                     </div>
                 </div>
 
@@ -78,7 +95,8 @@
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-telephone text-muted"></i></span>
                         <input type="tel" name="guest_phone" class="form-control border-start-0 ps-0"
-                               value="{{ app.request.request.get('guest_phone') }}" required placeholder="+1 555 000 0000">
+                               value="{{ app.request.request.get('guest_phone') }}" required placeholder="{{ 'placeholder.phone'|trans }}"
+                               pattern="^\+?[\d\s\-\.\(\)]{7,20}$" title="{{ 'validation.phone'|trans }}">
                     </div>
                 </div>
 
@@ -123,6 +141,19 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="galleryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark border-0">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-2">
+                <img id="galleryImg" src="" alt="" style="max-height:70vh;max-width:100%;border-radius:8px;object-fit:contain">
+            </div>
+            <div class="modal-footer border-0 justify-content-center pt-0 pb-3 gap-2" id="galleryThumbs"></div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -137,8 +168,12 @@
     'cal.month.9'|trans, 'cal.month.10'|trans, 'cal.month.11'|trans
 ] %}
 <script>
-const workingHours = {{ organization.workingHours|json_encode|raw }};
-const disabledDays = {{ organization.disabledWeekdays|json_encode|raw }};
+const nonstop      = {{ organization.nonstop ? 'true' : 'false' }};
+const orgHours     = {{ organization.workingHours|json_encode|raw }};
+const empHours     = {{ employee.workingHours ? employee.workingHours|json_encode|raw : 'null' }};
+const workingHours = empHours ?? orgHours;
+const phpDayMap    = { sunday:0, monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6 };
+const disabledDays = nonstop ? [] : Object.entries(workingHours).filter(([,c])=>!c.enabled).map(([d])=>phpDayMap[d]);
 const timeStep     = {{ organization.timeStep }};
 const lunchStart   = {{ employee.lunchBreakStart ? ('"'~employee.lunchBreakStart|date('H:i')~'"')|raw : 'null' }};
 const lunchEnd     = {{ employee.lunchBreakEnd   ? ('"'~employee.lunchBreakEnd|date('H:i')~'"')|raw   : 'null' }};
@@ -233,13 +268,16 @@ function renderTimeGrid() {
     const day = dayNames[selectedDate.getDay()];
     const cfg = workingHours[day];
 
-    if (!cfg || !cfg.enabled) { empty.style.display = ''; return; }
+    if (!nonstop && (!cfg || !cfg.enabled)) { empty.style.display = ''; return; }
+
+    const openMin  = nonstop ? 0     : toMin(cfg.open);
+    const closeMin = nonstop ? 24*60 : toMin(cfg.close);
 
     const lsMin = lunchStart ? toMin(lunchStart) : null;
     const leMin = lunchEnd   ? toMin(lunchEnd)   : null;
 
     let count = 0;
-    for (let t = toMin(cfg.open); t < toMin(cfg.close); t += timeStep) {
+    for (let t = openMin; t < closeMin; t += timeStep) {
         if (lsMin !== null && t >= lsMin && t < leMin) continue;
         const ts = toStr(t);
         if (isUnavailable(ts)) continue;
@@ -282,5 +320,27 @@ document.getElementById('bookForm').addEventListener('submit', e => {
 });
 
 renderDateStrip();
+
+const portfolioPhotos = {{ employee.portfolioPhotos ? employee.portfolioPhotos|json_encode|raw : '[]' }};
+let _gIdx = 0;
+function openGallery(idx) {
+    _gIdx = idx;
+    renderGallery();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('galleryModal')).show();
+}
+function renderGallery() {
+    document.getElementById('galleryImg').src = '/uploads/portfolio/' + portfolioPhotos[_gIdx];
+    document.getElementById('galleryThumbs').innerHTML = portfolioPhotos.map((p, i) =>
+        `<img src="/uploads/portfolio/${p}" onclick="setGalleryIdx(${i})"
+              style="width:44px;height:44px;object-fit:cover;border-radius:6px;cursor:pointer;
+                     opacity:${i===_gIdx?1:.5};border:2px solid ${i===_gIdx?'#6366f1':'transparent'}">`
+    ).join('');
+}
+function setGalleryIdx(i) { _gIdx = i; renderGallery(); }
+document.addEventListener('keydown', e => {
+    if (!document.getElementById('galleryModal').classList.contains('show')) return;
+    if (e.key === 'ArrowRight') setGalleryIdx((_gIdx + 1) % portfolioPhotos.length);
+    if (e.key === 'ArrowLeft')  setGalleryIdx((_gIdx - 1 + portfolioPhotos.length) % portfolioPhotos.length);
+});
 </script>
 {% endblock %}

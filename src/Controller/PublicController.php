@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Appointment;
+use App\Util\PhoneValidator;
 use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
@@ -78,13 +79,15 @@ class PublicController extends AbstractController
 
             if (!$guestName || !$guestPhone) {
                 $error = 'Please provide your name and phone number.';
+            } elseif (!PhoneValidator::isValid($guestPhone)) {
+                $error = 'Please enter a valid phone number.';
             } elseif (!$date || !$time) {
                 $error = 'Please select a date and time.';
             } elseif (!in_array(substr($time, 3, 2), $allowedMinutes, true)) {
                 $error = 'Please select a valid time slot.';
             } elseif (new \DateTime($date) < new \DateTime('today')) {
                 $error = 'Appointment date cannot be in the past.';
-            } elseif ($apptRepo->findConflict($employee, new \DateTime($date), new \DateTime($time))) {
+            } elseif ($apptRepo->findConflict($employee, new \DateTime($date), new \DateTime($time), null, $org->getTimeStep())) {
                 $error = $employee->getName() . ' is already booked at that time. Please choose a different time.';
             } else {
                 $appt = new Appointment();

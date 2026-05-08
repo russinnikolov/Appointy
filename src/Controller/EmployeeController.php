@@ -3,7 +3,9 @@
 namespace App\Controller;
 
 use App\Entity\Employee;
+use App\Entity\Organization;
 use App\Entity\User;
+use App\Util\PhoneValidator;
 use App\Repository\EmployeeRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -15,6 +17,7 @@ use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[IsGranted('ROLE_BUSINESS')]
 #[Route('/business/employees')]
@@ -43,7 +46,8 @@ class EmployeeController extends AbstractController
         EntityManagerInterface $em,
         UserPasswordHasherInterface $hasher,
         UserRepository $userRepo,
-        MailerInterface $mailer
+        MailerInterface $mailer,
+        TranslatorInterface $t
     ): Response {
         /** @var User $user */
         $user = $this->getUser();
@@ -64,8 +68,12 @@ class EmployeeController extends AbstractController
             $lunchStart = trim($request->request->get('lunch_start', ''));
             $lunchEnd   = trim($request->request->get('lunch_end', ''));
 
+            $empHours = $this->parseEmployeeHours($request);
+
             if (!$name) {
                 $error = 'Employee name is required.';
+            } elseif ($phone && !PhoneValidator::isValid($phone)) {
+                $error = 'Please enter a valid phone number.';
             } elseif (!$loginEmail) {
                 $error = 'A login email is required so the employee can access their account.';
             } elseif (!filter_var($loginEmail, FILTER_VALIDATE_EMAIL)) {
@@ -90,12 +98,16 @@ class EmployeeController extends AbstractController
                          ->setRole($role ?: null)
                          ->setPhone($phone ?: null)
                          ->setBio($bio ?: null)
+                         ->setWorkingHours($empHours ?: null)
                          ->setUser($empUser);
 
                 if ($lunchStart && $lunchEnd) {
                     $employee->setLunchBreakStart(new \DateTime($lunchStart))
                              ->setLunchBreakEnd(new \DateTime($lunchEnd));
                 }
+
+                $photos = $this->handlePortfolioUploads($request, [], $this->getParameter('kernel.project_dir'));
+                $employee->setPortfolioPhotos($photos ?: null);
 
                 $em->persist($empUser);
                 $em->persist($employee);
@@ -115,17 +127,9 @@ class EmployeeController extends AbstractController
 
                 try {
                     $mailer->send($email);
-                    $this->addFlash('success', sprintf(
-                        '%s has been added. Login credentials have been sent to %s.',
-                        $name,
-                        $loginEmail
-                    ));
+                    $this->addFlash('success', $t->trans('flash.employee_added', ['%name%' => $name, '%email%' => $loginEmail]));
                 } catch (\Throwable) {
-                    $this->addFlash('warning', sprintf(
-                        '%s has been added. Could not send the email — temporary password: %s',
-                        $name,
-                        $tempPassword
-                    ));
+                    $this->addFlash('warning', $t->trans('flash.employee_added_no_email', ['%name%' => $name, '%password%' => $tempPassword]));
                 }
 
                 return $this->redirectToRoute('business_employees');
@@ -144,7 +148,8 @@ class EmployeeController extends AbstractController
         Request $request,
         EmployeeRepository $repo,
         EntityManagerInterface $em,
-        UserPasswordHasherInterface $hasher
+        UserPasswordHasherInterface $hasher,
+        TranslatorInterface $t
     ): Response {
         /** @var User $user */
         $user     = $this->getUser();
@@ -166,8 +171,12 @@ class EmployeeController extends AbstractController
             $newPass    = $request->request->get('new_password', '');
             $confPass   = $request->request->get('confirm_password', '');
 
+            $empHours = $this->parseEmployeeHours($request);
+
             if (!$name) {
                 $error = 'Employee name is required.';
+            } elseif ($phone && !PhoneValidator::isValid($phone)) {
+                $error = 'Please enter a valid phone number.';
             } elseif (($lunchStart && !$lunchEnd) || (!$lunchStart && $lunchEnd)) {
                 $error = 'Please set both lunch break start and end, or leave both empty.';
             } elseif ($newPass && strlen($newPass) < 8) {
@@ -179,6 +188,7 @@ class EmployeeController extends AbstractController
                          ->setRole($role ?: null)
                          ->setPhone($phone ?: null)
                          ->setBio($bio ?: null)
+                         ->setWorkingHours($empHours ?: null)
                          ->setLunchBreakStart($lunchStart ? new \DateTime($lunchStart) : null)
                          ->setLunchBreakEnd($lunchEnd   ? new \DateTime($lunchEnd)   : null);
 
@@ -189,9 +199,21 @@ class EmployeeController extends AbstractController
                     }
                 }
 
+                $projectDir   = $this->getParameter('kernel.project_dir');
+                $removePhotos = $request->request->all('remove_photos');
+                $current      = $employee->getPortfolioPhotos() ?? [];
+                foreach ($removePhotos as $fname) {
+                    if (in_array($fname, $current, true)) {
+                        @unlink($projectDir . '/public/uploads/portfolio/' . $fname);
+                        $current = array_values(array_filter($current, fn($f) => $f !== $fname));
+                    }
+                }
+                $current = $this->handlePortfolioUploads($request, $current, $projectDir);
+                $employee->setPortfolioPhotos($current ?: null);
+
                 $em->flush();
 
-                $this->addFlash('success', $employee->getName() . ' has been updated.');
+                $this->addFlash('success', $t->trans('flash.employee_updated', ['%name%' => $employee->getName()]));
                 return $this->redirectToRoute('business_employees');
             }
         }
@@ -211,7 +233,8 @@ class EmployeeController extends AbstractController
         EntityManagerInterface $em,
         UserRepository $userRepo,
         UserPasswordHasherInterface $hasher,
-        MailerInterface $mailer
+        MailerInterface $mailer,
+        TranslatorInterface $t
     ): Response {
         /** @var User $user */
         $user     = $this->getUser();
@@ -222,19 +245,19 @@ class EmployeeController extends AbstractController
         }
 
         if ($employee->getUser()) {
-            $this->addFlash('warning', 'This employee already has a login account.');
+            $this->addFlash('warning', $t->trans('flash.employee_has_account'));
             return $this->redirectToRoute('business_employee_edit', ['id' => $id]);
         }
 
         $loginEmail = trim($request->request->get('login_email', ''));
 
         if (!$loginEmail || !filter_var($loginEmail, FILTER_VALIDATE_EMAIL)) {
-            $this->addFlash('danger', 'Please provide a valid email address.');
+            $this->addFlash('danger', $t->trans('flash.employee_invalid_email'));
             return $this->redirectToRoute('business_employee_edit', ['id' => $id]);
         }
 
         if ($userRepo->findOneBy(['email' => $loginEmail])) {
-            $this->addFlash('danger', 'This email is already registered.');
+            $this->addFlash('danger', $t->trans('flash.employee_email_taken'));
             return $this->redirectToRoute('business_employee_edit', ['id' => $id]);
         }
 
@@ -266,19 +289,44 @@ class EmployeeController extends AbstractController
 
         try {
             $mailer->send($email);
-            $this->addFlash('success', sprintf(
-                'Account created for %s. Login credentials have been sent to %s.',
-                $employee->getName(),
-                $loginEmail
-            ));
+            $this->addFlash('success', $t->trans('flash.employee_account_created', ['%name%' => $employee->getName(), '%email%' => $loginEmail]));
         } catch (\Throwable) {
-            $this->addFlash('warning', sprintf(
-                'Account created. Could not send the email — temporary password: %s',
-                $tempPassword
-            ));
+            $this->addFlash('warning', $t->trans('flash.employee_account_no_email', ['%password%' => $tempPassword]));
         }
 
         return $this->redirectToRoute('business_employee_edit', ['id' => $id]);
+    }
+
+    private function handlePortfolioUploads(Request $request, array $current, string $projectDir): array
+    {
+        $uploadDir = $projectDir . '/public/uploads/portfolio';
+        $files     = $request->files->get('portfolio_photos') ?: [];
+        if (!is_array($files)) {
+            $files = [$files];
+        }
+        foreach ($files as $file) {
+            if (count($current) >= 6) break;
+            if (!$file || !$file->isValid()) continue;
+            $ext      = $file->getClientOriginalExtension() ?: 'jpg';
+            $filename = 'portfolio_' . bin2hex(random_bytes(8)) . '.' . $ext;
+            $file->move($uploadDir, $filename);
+            $current[] = $filename;
+        }
+        return $current;
+    }
+
+    private function parseEmployeeHours(Request $request): ?array
+    {
+        $hours = [];
+        foreach (Organization::DAYS as $day) {
+            $hours[$day] = [
+                'enabled' => (bool) $request->request->get("emp_enabled_{$day}"),
+                'open'    => $request->request->get("emp_open_{$day}", '09:00'),
+                'close'   => $request->request->get("emp_close_{$day}", '18:00'),
+            ];
+        }
+        $anyEnabled = array_filter($hours, fn($c) => $c['enabled']);
+        return $anyEnabled ? $hours : null;
     }
 
     #[Route('/{id}/toggle', name: 'business_employee_toggle', methods: ['POST'])]
@@ -297,7 +345,7 @@ class EmployeeController extends AbstractController
     }
 
     #[Route('/{id}/delete', name: 'business_employee_delete', methods: ['POST'])]
-    public function delete(int $id, EmployeeRepository $repo, EntityManagerInterface $em): Response
+    public function delete(int $id, EmployeeRepository $repo, EntityManagerInterface $em, TranslatorInterface $t): Response
     {
         /** @var User $user */
         $user     = $this->getUser();
@@ -306,7 +354,7 @@ class EmployeeController extends AbstractController
         if ($employee && $employee->getOrganization() === $user->getOrganization()) {
             $em->remove($employee);
             $em->flush();
-            $this->addFlash('success', 'Employee removed.');
+            $this->addFlash('success', $t->trans('flash.employee_removed'));
         }
 
         return $this->redirectToRoute('business_employees');

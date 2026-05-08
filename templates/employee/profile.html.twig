@@ -41,7 +41,28 @@
                 </div>
             {% endif %}
 
-            <form method="post" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate>
+
+                {# ── Avatar ── #}
+                <div class="d-flex align-items-center gap-4 mb-4 pb-4 border-bottom">
+                    <div id="avatarPreview" class="rounded-circle overflow-hidden flex-shrink-0"
+                         style="width:72px;height:72px;background:#ede9fe;display:flex;align-items:center;justify-content:center;">
+                        {% if app.user.avatarFilename %}
+                            <img src="/uploads/avatars/{{ app.user.avatarFilename }}"
+                                 class="w-100 h-100" style="object-fit:cover;">
+                        {% else %}
+                            <i class="bi bi-person-fill text-primary" style="font-size:2rem;" id="avatarIcon"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-upload me-1"></i>{{ 'profile.avatar_change'|trans }}
+                            <input type="file" name="avatar" accept="image/*" class="d-none" onchange="previewAvatar(this)">
+                        </label>
+                        <p class="text-muted small mt-1 mb-0">{{ 'profile.avatar_hint'|trans }}</p>
+                    </div>
+                </div>
+
                 <p class="fw-semibold small text-uppercase text-muted mb-3">
                     <i class="bi bi-cup-hot me-1"></i>{{ 'employee.profile.lunch_section'|trans }}
                 </p>
@@ -95,6 +116,17 @@
 
 {% block scripts %}
 <script>
+function previewAvatar(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('avatarPreview').innerHTML =
+            `<img src="${e.target.result}" class="w-100 h-100" style="object-fit:cover;">`;
+    };
+    reader.readAsDataURL(file);
+}
+
 const workingHours = {{ organization.workingHours|json_encode|raw }};
 const timeStep     = {{ organization.timeStep }};
 const savedStart   = {{ lsVal ? ('"'~lsVal~'"')|raw : 'null' }};

@@ -58,34 +58,51 @@ class AppointmentRepository extends ServiceEntityRepository
      * Returns an existing non-cancelled appointment for the same employee/date/time.
      * Pass $excludeId to ignore the appointment being rescheduled.
      */
-    public function findConflict(Employee $employee, \DateTimeInterface $date, \DateTimeInterface $time, ?int $excludeId = null): ?Appointment
+    /**
+     * Returns a conflicting appointment, accounting for custom durationMinutes.
+     * A conflict exists if the requested slot falls within any existing appointment's time range.
+     */
+    public function findConflict(Employee $employee, \DateTimeInterface $date, \DateTimeInterface $time, ?int $excludeId = null, int $timeStep = 30): ?Appointment
     {
         $qb = $this->createQueryBuilder('a')
             ->andWhere('a.employee = :emp')
             ->andWhere('a.appointmentDate = :date')
-            ->andWhere('a.appointmentTime = :time')
             ->andWhere('a.status != :cancelled')
             ->setParameter('emp', $employee)
             ->setParameter('date', $date->format('Y-m-d'))
-            ->setParameter('time', $time->format('H:i:s'))
-            ->setParameter('cancelled', Appointment::STATUS_CANCELLED)
-            ->setMaxResults(1);
+            ->setParameter('cancelled', Appointment::STATUS_CANCELLED);
 
         if ($excludeId !== null) {
             $qb->andWhere('a.id != :id')->setParameter('id', $excludeId);
         }
 
-        return $qb->getQuery()->getOneOrNullResult();
+        $existing = $qb->getQuery()->getResult();
+
+        $reqMin    = (int) $time->format('H') * 60 + (int) $time->format('i');
+        $reqEndMin = $reqMin + $timeStep;
+
+        foreach ($existing as $a) {
+            $aMin    = (int) $a->getAppointmentTime()->format('H') * 60
+                     + (int) $a->getAppointmentTime()->format('i');
+            $aEndMin = $aMin + ($a->getDurationMinutes() ?? $timeStep);
+
+            if ($reqMin < $aEndMin && $reqEndMin > $aMin) {
+                return $a;
+            }
+        }
+
+        return null;
     }
 
     /**
-     * Returns array of "HH:MM" strings that are booked for the given employee on the given date.
+     * Returns all "HH:MM" slot strings occupied by appointments for the given employee/date.
+     * Appointments with durationMinutes > timeStep expand into multiple busy slots.
      * @return string[]
      */
-    public function findBusySlots(Employee $employee, string $date): array
+    public function findBusySlots(Employee $employee, string $date, int $timeStep = 30): array
     {
         $rows = $this->createQueryBuilder('a')
-            ->select('a.appointmentTime')
+            ->select('a.appointmentTime, a.durationMinutes')
             ->andWhere('a.employee = :emp')
             ->andWhere('a.appointmentDate = :date')
             ->andWhere('a.status != :cancelled')
@@ -95,12 +112,23 @@ class AppointmentRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
-        return array_map(
-            static fn($row) => $row['appointmentTime'] instanceof \DateTimeInterface
+        $slots = [];
+        foreach ($rows as $row) {
+            $startStr = $row['appointmentTime'] instanceof \DateTimeInterface
                 ? $row['appointmentTime']->format('H:i')
-                : substr((string) $row['appointmentTime'], 0, 5),
-            $rows
-        );
+                : substr((string) $row['appointmentTime'], 0, 5);
+
+            [$h, $m]  = array_map('intval', explode(':', $startStr));
+            $startMin = $h * 60 + $m;
+            $duration = $row['durationMinutes'] ?? $timeStep;
+
+            for ($t = $startMin; $t < $startMin + $duration; $t += $timeStep) {
+                $slots[] = str_pad((string) intdiv($t, 60), 2, '0', STR_PAD_LEFT)
+                         . ':' . str_pad((string) ($t % 60), 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        return array_values(array_unique($slots));
     }
 
     /** @return array{pending: int, confirmed: int, cancelled: int} */

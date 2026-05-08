@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[IsGranted('ROLE_CLIENT')]
 #[Route('/client')]
@@ -34,6 +35,8 @@ class ClientDashboardController extends AbstractController
             'status'      => $a->getStatus(),
             'employee'    => $a->getEmployee()?->getName(),
             'emp_role'    => $a->getEmployee()?->getRole(),
+            'emp_phone'   => $a->getEmployee()?->getPhone(),
+            'org_phone'   => $a->getOrganization()->getPhone(),
             'notes'       => $a->getNotes(),
             'cancel_note' => $a->getCancellationNote(),
         ], $appointments);
@@ -66,7 +69,8 @@ class ClientDashboardController extends AbstractController
         OrganizationRepository $orgRepo,
         EmployeeRepository $empRepo,
         AppointmentRepository $apptRepo,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        TranslatorInterface $t
     ): Response {
         $org = $orgRepo->find($id);
         if (!$org) {
@@ -104,7 +108,7 @@ class ClientDashboardController extends AbstractController
                 $error = 'Please select a valid time slot.';
             } elseif (new \DateTime($date) < new \DateTime('today')) {
                 $error = 'Appointment date cannot be in the past.';
-            } elseif ($employee && $apptRepo->findConflict($employee, new \DateTime($date), new \DateTime($time))) {
+            } elseif ($employee && $apptRepo->findConflict($employee, new \DateTime($date), new \DateTime($time), null, $org->getTimeStep())) {
                 $error = $employee->getName() . ' already has an appointment at that time. Please choose a different time.';
             } else {
                 $appt = new Appointment();
@@ -118,7 +122,7 @@ class ClientDashboardController extends AbstractController
                 $em->persist($appt);
                 $em->flush();
 
-                $this->addFlash('success', 'Appointment booked! Waiting for confirmation.');
+                $this->addFlash('success', $t->trans('flash.appointment_booked'));
                 return $this->redirectToRoute('client_dashboard');
             }
         }
@@ -131,7 +135,7 @@ class ClientDashboardController extends AbstractController
     }
 
     #[Route('/cancel/{id}', name: 'client_cancel', methods: ['POST'])]
-    public function cancel(int $id, Request $request, AppointmentRepository $repo, EntityManagerInterface $em): Response
+    public function cancel(int $id, Request $request, AppointmentRepository $repo, EntityManagerInterface $em, TranslatorInterface $t): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -142,7 +146,7 @@ class ClientDashboardController extends AbstractController
             $appt->setStatus(Appointment::STATUS_CANCELLED)
                  ->setCancellationNote($note ?: null);
             $em->flush();
-            $this->addFlash('success', 'Appointment cancelled.');
+            $this->addFlash('success', $t->trans('flash.appointment_cancelled'));
         }
 
         return $this->redirectToRoute('client_dashboard');

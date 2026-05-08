@@ -62,8 +62,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToOne(mappedBy: 'user', targetEntity: Employee::class)]
     private ?Employee $employee = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $avatarFilename = null;
+
     #[ORM\Column(options: ['default' => false])]
     private bool $mustChangePassword = false;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $messagingApps = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -127,8 +133,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getEmployee(): ?Employee { return $this->employee; }
 
+    public function getAvatarFilename(): ?string { return $this->avatarFilename; }
+    public function setAvatarFilename(?string $v): static { $this->avatarFilename = $v; return $this; }
+
     public function isMustChangePassword(): bool { return $this->mustChangePassword; }
     public function setMustChangePassword(bool $v): static { $this->mustChangePassword = $v; return $this; }
+
+    public const MESSAGING_APPS = ['whatsapp', 'telegram', 'viber', 'sms'];
+
+    public function getMessagingApps(): array { return $this->messagingApps ?? []; }
+    public function setMessagingApps(array $v): static { $this->messagingApps = $v ?: null; return $this; }
 
     public function getRoles(): array
     {

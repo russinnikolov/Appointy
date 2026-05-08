@@ -74,9 +74,22 @@
                         </li>
                     {% endif %}
                     <li class="nav-item">
-                        <span class="text-muted small me-1">
-                            <i class="bi bi-person-circle me-1"></i>{{ app.user.name }}
-                        </span>
+                        {% if is_granted('ROLE_BUSINESS') %}
+                            {% set profileRoute = 'business_profile' %}
+                        {% elseif is_granted('ROLE_EMPLOYEE') %}
+                            {% set profileRoute = 'employee_profile' %}
+                        {% else %}
+                            {% set profileRoute = 'client_profile' %}
+                        {% endif %}
+                        <a class="nav-link d-flex align-items-center gap-1 py-1" href="{{ path(profileRoute) }}">
+                            {% if app.user.avatarFilename %}
+                                <img src="/uploads/avatars/{{ app.user.avatarFilename }}"
+                                     class="rounded-circle" style="width:28px;height:28px;object-fit:cover;" alt="">
+                            {% else %}
+                                <i class="bi bi-person-circle"></i>
+                            {% endif %}
+                            <span class="small">{{ app.user.name }}</span>
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="btn btn-outline-secondary btn-sm" href="{{ path('logout') }}">
@@ -87,6 +100,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ path('public_organizations') }}">
                             <i class="bi bi-building me-1"></i>{{ 'nav.browse'|trans }}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ path('contact') }}">
+                            <i class="bi bi-envelope me-1"></i>{{ 'nav.contact'|trans }}
                         </a>
                     </li>
                     <li class="nav-item">

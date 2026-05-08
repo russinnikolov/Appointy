@@ -40,7 +40,7 @@
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-person text-muted"></i></span>
                         <input type="text" name="name" class="form-control border-start-0 ps-0"
-                               value="{{ app.request.request.get('name') }}" required placeholder="John Doe">
+                               value="{{ app.request.request.get('name') }}" required placeholder="{{ 'placeholder.full_name'|trans }}">
                     </div>
                 </div>
 
@@ -49,7 +49,7 @@
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-envelope text-muted"></i></span>
                         <input type="email" name="email" class="form-control border-start-0 ps-0"
-                               value="{{ app.request.request.get('email') }}" required placeholder="you@example.com">
+                               value="{{ app.request.request.get('email') }}" required placeholder="{{ 'placeholder.email'|trans }}">
                     </div>
                 </div>
 
@@ -58,7 +58,28 @@
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-telephone text-muted"></i></span>
                         <input type="tel" name="phone" class="form-control border-start-0 ps-0"
-                               value="{{ app.request.request.get('phone') }}" placeholder="+359 88 000 0000">
+                               value="{{ app.request.request.get('phone') }}" placeholder="{{ 'placeholder.phone'|trans }}"
+                               pattern="^\+?[\d\s\-\.\(\)]{7,20}$" title="{{ 'validation.phone'|trans }}">
+                    </div>
+                </div>
+
+                <div id="clientMessagingFields" class="{{ type == 'business' ? 'd-none' : '' }} mb-3">
+                    <label class="form-label fw-semibold small d-block">{{ 'auth.register.messaging_apps'|trans }}</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for app in ['whatsapp', 'telegram', 'viber', 'sms'] %}
+                        <div class="form-check form-check-inline me-0">
+                            <input class="form-check-input" type="checkbox" name="messaging_apps[]"
+                                   value="{{ app }}" id="reg_app_{{ app }}"
+                                   {{ app in (app.request.request.all('messaging_apps') ?? []) ? 'checked' : '' }}>
+                            <label class="form-check-label small d-flex align-items-center gap-1" for="reg_app_{{ app }}">
+                                {% if app == 'whatsapp' %}<i class="bi bi-whatsapp" style="color:#25D366"></i>{% endif %}
+                                {% if app == 'telegram' %}<i class="bi bi-telegram" style="color:#229ED9"></i>{% endif %}
+                                {% if app == 'viber' %}<i class="bi bi-phone" style="color:#7360f2"></i>{% endif %}
+                                {% if app == 'sms' %}<i class="bi bi-chat-dots" style="color:#6b7280"></i>{% endif %}
+                                {{ ('messaging.' ~ app)|trans }}
+                            </label>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
 
@@ -84,7 +105,7 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold small">{{ 'auth.register.org_name'|trans }} <span class="text-danger">*</span></label>
                         <input type="text" name="org_name" class="form-control"
-                               value="{{ app.request.request.get('org_name') }}" placeholder="Acme Barbershop">
+                               value="{{ app.request.request.get('org_name') }}" placeholder="{{ 'placeholder.org_name'|trans }}">
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -95,7 +116,7 @@
                                 {% for cat in ['Barbershop', 'Beauty Salon', 'Dental', 'Medical', 'Fitness', 'Spa', 'Legal', 'Consulting', 'Other'] %}
                                     <option value="{{ cat }}"
                                         {{ app.request.request.get('org_category') == cat ? 'selected' : '' }}>
-                                        {{ cat }}
+                                        {{ ('category.' ~ cat)|trans }}
                                     </option>
                                 {% endfor %}
                             </select>
@@ -103,39 +124,40 @@
                         <div class="col-6">
                             <label class="form-label fw-semibold small">{{ 'auth.register.org_phone'|trans }}</label>
                             <input type="tel" name="org_phone" class="form-control"
-                                   value="{{ app.request.request.get('org_phone') }}" placeholder="+359 2 000 0000">
+                                   value="{{ app.request.request.get('org_phone') }}" placeholder="{{ 'placeholder.org_phone'|trans }}"
+                                   pattern="^\+?[\d\s\-\.\(\)]{7,20}$" title="{{ 'validation.phone'|trans }}">
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold small">{{ 'auth.register.org_email'|trans }}</label>
                         <input type="email" name="org_email" class="form-control"
-                               value="{{ app.request.request.get('org_email') }}" placeholder="contact@yourbusiness.com">
+                               value="{{ app.request.request.get('org_email') }}" placeholder="{{ 'placeholder.org_email'|trans }}">
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold small">{{ 'auth.register.org_address'|trans }}</label>
                         <input type="text" name="org_address" class="form-control"
-                               value="{{ app.request.request.get('org_address') }}" placeholder="ул. Витоша 1">
+                               value="{{ app.request.request.get('org_address') }}" placeholder="{{ 'placeholder.address'|trans }}">
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-semibold small">{{ 'common.city'|trans }}</label>
                             <input type="text" name="org_city" class="form-control"
-                                   value="{{ app.request.request.get('org_city') }}" placeholder="София">
+                                   value="{{ app.request.request.get('org_city') }}" placeholder="{{ 'placeholder.city'|trans }}">
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-semibold small">{{ 'common.zip'|trans }}</label>
                             <input type="text" name="org_zip" class="form-control"
-                                   value="{{ app.request.request.get('org_zip') }}" placeholder="1000">
+                                   value="{{ app.request.request.get('org_zip') }}" placeholder="{{ 'placeholder.zip'|trans }}">
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold small">{{ 'common.country'|trans }}</label>
                         <input type="text" name="org_country" class="form-control"
-                               value="{{ app.request.request.get('org_country') }}" placeholder="България">
+                               value="{{ app.request.request.get('org_country') }}" placeholder="{{ 'placeholder.country'|trans }}">
                     </div>
 
                     <div class="mb-4">
@@ -167,6 +189,7 @@ function switchType(type) {
     document.getElementById('tab-client').classList.toggle('active', type === 'client');
     document.getElementById('tab-business').classList.toggle('active', type === 'business');
     document.getElementById('businessFields').classList.toggle('d-none', type !== 'business');
+    document.getElementById('clientMessagingFields').classList.toggle('d-none', type !== 'client');
 }
 </script>
 {% endblock %}

@@ -1,0 +1,137 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'profile.title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-sm-10 col-md-8 col-lg-6">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold mb-0">{{ 'profile.title'|trans }}</h4>
+            <a href="{{ path('business_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>{{ 'profile.back_dashboard'|trans }}
+            </a>
+        </div>
+
+        {% for msg in app.flashes('success') %}
+            <div class="alert alert-success py-2 small"><i class="bi bi-check-circle me-1"></i>{{ msg }}</div>
+        {% endfor %}
+
+        {% if error %}
+            <div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" novalidate>
+
+            {# ── Avatar ── #}
+            <div class="card p-4 mb-3">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">
+                    <i class="bi bi-person-circle me-1"></i>{{ 'profile.avatar_section'|trans }}
+                </p>
+                <div class="d-flex align-items-center gap-4">
+                    <div id="avatarPreview" class="rounded-circle overflow-hidden flex-shrink-0"
+                         style="width:80px;height:80px;background:#ede9fe;display:flex;align-items:center;justify-content:center;">
+                        {% if app.user.avatarFilename %}
+                            <img src="/uploads/avatars/{{ app.user.avatarFilename }}"
+                                 class="w-100 h-100" style="object-fit:cover;" id="avatarImg">
+                        {% else %}
+                            <i class="bi bi-person-fill text-primary" style="font-size:2.5rem;" id="avatarIcon"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-upload me-1"></i>{{ 'profile.avatar_change'|trans }}
+                            <input type="file" name="avatar" accept="image/*" class="d-none" onchange="previewImage(this,'avatarPreview','avatarIcon')">
+                        </label>
+                        <p class="text-muted small mt-1 mb-0">{{ 'profile.avatar_hint'|trans }}</p>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Personal ── #}
+            <div class="card p-4 mb-3">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">
+                    <i class="bi bi-person me-1"></i>{{ 'profile.personal_section'|trans }}
+                </p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'common.name'|trans }} <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required
+                           value="{{ app.request.isMethod('POST') ? app.request.request.get('name') : app.user.name }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'common.email'|trans }}</label>
+                    <input type="email" class="form-control bg-light" value="{{ app.user.email }}" disabled>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label fw-semibold small">{{ 'common.phone'|trans }}</label>
+                    <input type="tel" name="phone" class="form-control"
+                           value="{{ app.request.isMethod('POST') ? app.request.request.get('phone') : app.user.phone }}"
+                           pattern="^\+?[\d\s\-\.\(\)]{7,20}$" title="{{ 'validation.phone'|trans }}"
+                           placeholder="{{ 'placeholder.phone'|trans }}">
+                </div>
+            </div>
+
+            {# ── Organization logo ── #}
+            {% if organization %}
+            <div class="card p-4 mb-3">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">
+                    <i class="bi bi-building me-1"></i>{{ 'business.profile.logo_section'|trans }}
+                </p>
+                <div class="d-flex align-items-center gap-4">
+                    <div id="logoPreview" class="rounded overflow-hidden flex-shrink-0"
+                         style="width:80px;height:80px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;">
+                        {% if organization.logoFilename %}
+                            <img src="/uploads/logos/{{ organization.logoFilename }}"
+                                 class="w-100 h-100" style="object-fit:contain;">
+                        {% else %}
+                            <i class="bi bi-building text-muted" style="font-size:2rem;" id="logoIcon"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-upload me-1"></i>{{ 'business.profile.logo_change'|trans }}
+                            <input type="file" name="logo" accept="image/*" class="d-none" onchange="previewImage(this,'logoPreview','logoIcon')">
+                        </label>
+                        <p class="text-muted small mt-1 mb-0">{{ 'business.profile.logo_hint'|trans }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# ── Password ── #}
+            <div class="card p-4 mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">
+                    <i class="bi bi-lock me-1"></i>{{ 'profile.password_section'|trans }}
+                </p>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'profile.new_password'|trans }}</label>
+                        <input type="password" name="new_password" class="form-control" placeholder="{{ 'profile.min_chars'|trans }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'profile.confirm_password'|trans }}</label>
+                        <input type="password" name="confirm_password" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                <i class="bi bi-check-lg me-1"></i>{{ 'profile.save'|trans }}
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewImage(input, previewId, iconId) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const wrap = document.getElementById(previewId);
+        wrap.innerHTML = `<img src="${e.target.result}" class="w-100 h-100" style="object-fit:cover;">`;
+    };
+    reader.readAsDataURL(file);
+}
+</script>
+{% endblock %}

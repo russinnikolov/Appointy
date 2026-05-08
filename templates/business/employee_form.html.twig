@@ -25,31 +25,82 @@
                 </div>
             {% endif %}
 
-            <form method="post" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate>
                 <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'employee.form.info_section'|trans }}</p>
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">{{ 'common.name'|trans }} <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" required placeholder="Jane Smith"
+                    <input type="text" name="name" class="form-control" required placeholder="{{ 'placeholder.employee_name'|trans }}"
                            value="{{ app.request.isMethod('POST') ? app.request.request.get('name') : (editing ? employee.name : '') }}">
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">{{ 'common.role'|trans }}</label>
-                    <input type="text" name="role" class="form-control" placeholder="Senior Barber, Doctor, Consultant…"
+                    <input type="text" name="role" class="form-control" placeholder="{{ 'placeholder.role'|trans }}"
                            value="{{ app.request.isMethod('POST') ? app.request.request.get('role') : (editing ? employee.role : '') }}">
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold small">{{ 'common.phone'|trans }}</label>
-                    <input type="tel" name="phone" class="form-control" placeholder="+1 555 000 0000"
-                           value="{{ app.request.isMethod('POST') ? app.request.request.get('phone') : (editing ? employee.phone : '') }}">
+                    <input type="tel" name="phone" class="form-control" placeholder="{{ 'placeholder.phone'|trans }}"
+                           value="{{ app.request.isMethod('POST') ? app.request.request.get('phone') : (editing ? employee.phone : '') }}"
+                           pattern="^\+?[\d\s\-\.\(\)]{7,20}$" title="{{ 'validation.phone'|trans }}">
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold small">{{ 'common.bio'|trans }} <span class="text-muted">({{ 'common.optional'|trans }})</span></label>
                     <textarea name="bio" class="form-control" rows="2"
                               placeholder="{{ 'employee.form.bio_placeholder'|trans }}">{{ app.request.isMethod('POST') ? app.request.request.get('bio') : (editing ? employee.bio : '') }}</textarea>
+                </div>
+
+                <hr class="mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-2">
+                    <i class="bi bi-images me-1"></i>{{ 'employee.form.portfolio_section'|trans }}
+                    <span class="fw-normal">{{ 'employee.form.portfolio_note'|trans }}</span>
+                </p>
+
+                {% set existingPhotos = editing ? (employee.portfolioPhotos ?? []) : [] %}
+
+                <div class="row g-2 mb-4">
+                    {% for i in 0..5 %}
+                        {% set photo = existingPhotos[i] ?? null %}
+                        <div class="col-4">
+                            <div id="slot-wrap-{{ i }}"
+                                 class="position-relative"
+                                 style="aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;
+                                        background:{{ photo ? '#f3f4f6' : '#f9fafb' }};
+                                        border:{{ photo ? 'none' : '2px dashed #d1d5db' }}"
+                                 onclick="slotClick({{ i }})">
+
+                                {# Preview image #}
+                                <img id="preview-{{ i }}"
+                                     src="{{ photo ? '/uploads/portfolio/' ~ photo : '' }}"
+                                     class="w-100 h-100{{ photo ? '' : ' d-none' }}"
+                                     style="object-fit:cover">
+
+                                {# Empty-slot placeholder #}
+                                <div id="placeholder-{{ i }}"
+                                     class="d-flex flex-column align-items-center justify-content-center w-100 h-100{{ photo ? ' d-none' : '' }}"
+                                     style="position:absolute;top:0;left:0;gap:4px">
+                                    <i class="bi bi-plus-lg text-muted" style="font-size:1.3rem"></i>
+                                    <span class="text-muted" style="font-size:.65rem">{{ 'employee.form.add_photo'|trans }}</span>
+                                </div>
+
+                                {# Remove button #}
+                                <button type="button" id="remove-btn-{{ i }}"
+                                        class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 p-0{{ photo ? '' : ' d-none' }}"
+                                        style="width:24px;height:24px;line-height:1;border-radius:6px;z-index:2"
+                                        onclick="event.stopPropagation(); clearSlot({{ i }}, '{{ photo ?? '' }}')">
+                                    <i class="bi bi-x"></i>
+                                </button>
+
+                                {# File input — stays in DOM, never replaced #}
+                                <input type="file" name="portfolio_photos[]" accept="image/*"
+                                       class="d-none" id="photo-input-{{ i }}"
+                                       onchange="photoSelected({{ i }})">
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
 
                 <hr class="mb-4">
@@ -70,6 +121,73 @@
                             <option value="">{{ 'common.no_break'|trans }}</option>
                         </select>
                     </div>
+                </div>
+
+                <hr class="mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">
+                    <i class="bi bi-clock me-1"></i>{{ 'employee.form.hours_section'|trans }}
+                </p>
+                <p class="text-muted small mb-3">{{ 'employee.form.hours_note'|trans }}</p>
+
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:110px">{{ 'common.date'|trans }}</th>
+                                <th style="width:60px" class="text-center">{{ 'hours.closed'|trans }}</th>
+                                <th>{{ 'hours.open'|trans }}</th>
+                                <th>{{ 'hours.close'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="empHoursBody">
+                        {% for day in ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] %}
+                            {% set orgCfg = organization.workingHours[day] ?? {enabled: false, open: '09:00', close: '18:00'} %}
+                            {% if app.request.isMethod('POST') %}
+                                {% set empEnabled = app.request.request.get('emp_enabled_' ~ day) ? true : false %}
+                                {% set empOpen  = app.request.request.get('emp_open_' ~ day) ?? orgCfg.open %}
+                                {% set empClose = app.request.request.get('emp_close_' ~ day) ?? orgCfg.close %}
+                            {% else %}
+                                {% set empEnabled = editing and employee.workingHours and employee.workingHours[day] is defined ? employee.workingHours[day].enabled : false %}
+                                {% set empOpen  = editing and employee.workingHours and employee.workingHours[day] is defined ? employee.workingHours[day].open  : orgCfg.open %}
+                                {% set empClose = editing and employee.workingHours and employee.workingHours[day] is defined ? employee.workingHours[day].close : orgCfg.close %}
+                            {% endif %}
+                            <tr>
+                                <td class="fw-semibold text-capitalize">{{ day }}</td>
+                                <td class="text-center">
+                                    <div class="form-check form-switch d-flex justify-content-center mb-0">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="emp_enabled_{{ day }}" value="1"
+                                               id="emp_en_{{ day }}"
+                                               onchange="toggleEmpRow('{{ day }}', this.checked)"
+                                               {{ empEnabled ? 'checked' : '' }}>
+                                    </div>
+                                </td>
+                                <td id="emp_row_{{ day }}" class="{{ not empEnabled ? 'opacity-50' : '' }}">
+                                    <select name="emp_open_{{ day }}" class="form-select form-select-sm"
+                                            style="max-width:100px" {{ not empEnabled ? 'disabled' : '' }}>
+                                        {% for h in range(0, 23) %}
+                                            {% for m in ['00', '15', '30', '45'] %}
+                                                {% set val = '%02d'|format(h) ~ ':' ~ m %}
+                                                <option value="{{ val }}" {{ empOpen == val ? 'selected' : '' }}>{{ val }}</option>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td id="emp_row2_{{ day }}" class="{{ not empEnabled ? 'opacity-50' : '' }}">
+                                    <select name="emp_close_{{ day }}" class="form-select form-select-sm"
+                                            style="max-width:100px" {{ not empEnabled ? 'disabled' : '' }}>
+                                        {% for h in range(0, 23) %}
+                                            {% for m in ['00', '15', '30', '45'] %}
+                                                {% set val = '%02d'|format(h) ~ ':' ~ m %}
+                                                <option value="{{ val }}" {{ empClose == val ? 'selected' : '' }}>{{ val }}</option>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
 
                 <hr class="mb-4">
@@ -115,7 +233,7 @@
                         <label class="form-label fw-semibold small">{{ 'employee.form.login_email'|trans }} <span class="text-danger">*</span></label>
                         <input type="email" name="login_email" class="form-control" required
                                value="{{ app.request.isMethod('POST') ? app.request.request.get('login_email') : '' }}"
-                               placeholder="employee@example.com">
+                               placeholder="{{ 'placeholder.employee_email'|trans }}">
                         <div class="form-text"><i class="bi bi-info-circle me-1"></i>{{ 'employee.form.email_hint'|trans }}</div>
                     </div>
                 {% endif %}
@@ -145,7 +263,7 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold small">{{ 'employee.modal.email'|trans }} <span class="text-danger">*</span></label>
                         <input type="email" name="login_email" class="form-control" required
-                               placeholder="employee@example.com" autofocus>
+                               placeholder="{{ 'placeholder.employee_email'|trans }}" autofocus>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
@@ -172,6 +290,7 @@ const savedEnd     = {{ leVal ? ('"'~leVal~'"')|raw : 'null' }};
     const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
     const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
 
+    if (!workingHours) return;
     let minOpen = Infinity, maxClose = -Infinity;
     Object.values(workingHours).forEach(cfg => {
         if (!cfg || !cfg.enabled) return;
@@ -192,6 +311,55 @@ const savedEnd     = {{ leVal ? ('"'~leVal~'"')|raw : 'null' }};
     const closeStr = toStr(maxClose);
     endSel.appendChild(new Option(closeStr, closeStr, false, closeStr === savedEnd));
 })();
+
+function toggleEmpRow(day, enabled) {
+    ['emp_row_' + day, 'emp_row2_' + day].forEach(id => {
+        const cell = document.getElementById(id);
+        cell.classList.toggle('opacity-50', !enabled);
+        cell.querySelector('select').disabled = !enabled;
+    });
+}
+
+function slotClick(i) {
+    // Only open file picker if the slot is currently empty
+    if (document.getElementById('preview-' + i).classList.contains('d-none')) {
+        document.getElementById('photo-input-' + i).click();
+    }
+}
+
+function photoSelected(i) {
+    const input = document.getElementById('photo-input-' + i);
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('preview-' + i).src = e.target.result;
+        document.getElementById('preview-' + i).classList.remove('d-none');
+        document.getElementById('placeholder-' + i).classList.add('d-none');
+        document.getElementById('remove-btn-' + i).classList.remove('d-none');
+        const wrap = document.getElementById('slot-wrap-' + i);
+        wrap.style.border = 'none';
+        wrap.style.background = '#f3f4f6';
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+function clearSlot(i, existingFilename) {
+    if (existingFilename) {
+        const hidden = document.createElement('input');
+        hidden.type  = 'hidden';
+        hidden.name  = 'remove_photos[]';
+        hidden.value = existingFilename;
+        document.querySelector('form').appendChild(hidden);
+    }
+    document.getElementById('photo-input-' + i).value = '';
+    document.getElementById('preview-' + i).src = '';
+    document.getElementById('preview-' + i).classList.add('d-none');
+    document.getElementById('placeholder-' + i).classList.remove('d-none');
+    document.getElementById('remove-btn-' + i).classList.add('d-none');
+    const wrap = document.getElementById('slot-wrap-' + i);
+    wrap.style.border = '2px dashed #d1d5db';
+    wrap.style.background = '#f9fafb';
+}
 
 function syncLunchEnd() {
     const startSel = document.getElementById('lunchStart');

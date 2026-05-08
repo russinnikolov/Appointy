@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[IsGranted('ROLE_EMPLOYEE')]
 #[Route('/employee')]
@@ -54,7 +55,8 @@ class EmployeeProfileController extends AbstractController
         Request $request,
         EmployeeRepository $repo,
         EntityManagerInterface $em,
-        UserPasswordHasherInterface $hasher
+        UserPasswordHasherInterface $hasher,
+        TranslatorInterface $t
     ): Response {
         $employee = $this->getEmployee($repo);
         /** @var User $user */
@@ -84,8 +86,20 @@ class EmployeeProfileController extends AbstractController
                     $user->setMustChangePassword(false);
                 }
 
+                $avatarFile = $request->files->get('avatar');
+                if ($avatarFile && $avatarFile->isValid()) {
+                    $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars/';
+                    $ext        = $avatarFile->getClientOriginalExtension() ?: 'jpg';
+                    $filename   = 'user-' . $user->getId() . '-' . uniqid() . '.' . $ext;
+                    if ($user->getAvatarFilename()) {
+                        @unlink($uploadsDir . $user->getAvatarFilename());
+                    }
+                    $avatarFile->move($uploadsDir, $filename);
+                    $user->setAvatarFilename($filename);
+                }
+
                 $em->flush();
-                $this->addFlash('success', 'Profile updated successfully.');
+                $this->addFlash('success', $t->trans('flash.profile_updated'));
                 return $this->redirectToRoute('employee_profile');
             }
         }
