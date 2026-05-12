@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
+use App\Repository\ServiceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -37,8 +38,9 @@ class ClientDashboardController extends AbstractController
             'emp_role'    => $a->getEmployee()?->getRole(),
             'emp_phone'   => $a->getEmployee()?->getPhone(),
             'org_phone'   => $a->getOrganization()->getPhone(),
-            'notes'       => $a->getNotes(),
-            'cancel_note' => $a->getCancellationNote(),
+            'service_name' => $a->getService()?->getName(),
+            'notes'        => $a->getNotes(),
+            'cancel_note'  => $a->getCancellationNote(),
         ], $appointments);
 
         return $this->render('client/dashboard.html.twig', [
@@ -69,6 +71,7 @@ class ClientDashboardController extends AbstractController
         OrganizationRepository $orgRepo,
         EmployeeRepository $empRepo,
         AppointmentRepository $apptRepo,
+        ServiceRepository $svcRepo,
         EntityManagerInterface $em,
         TranslatorInterface $t
     ): Response {
@@ -80,6 +83,7 @@ class ClientDashboardController extends AbstractController
         /** @var User $user */
         $user      = $this->getUser();
         $employees = $empRepo->findActiveByOrganization($org);
+        $services  = $svcRepo->findByOrganization($org);
         $error     = null;
 
         if ($request->isMethod('POST')) {
@@ -87,7 +91,9 @@ class ClientDashboardController extends AbstractController
             $time       = $request->request->get('time', '');
             $notes      = trim($request->request->get('notes', ''));
             $employeeId = $request->request->get('employee_id');
+            $serviceId  = $request->request->get('service_id');
             $employee   = null;
+            $service    = null;
 
             if ($employeeId) {
                 $employee = $empRepo->find((int) $employeeId);
@@ -96,41 +102,72 @@ class ClientDashboardController extends AbstractController
                 }
             }
 
-            $step  = $org->getTimeStep();
+            if ($serviceId) {
+                $service = $svcRepo->find((int) $serviceId);
+                if (!$service || $service->getOrganization() !== $org || !$service->isActive()) {
+                    $service = null;
+                }
+            }
+
+            $step           = $org->getTimeStep();
             $allowedMinutes = [];
             for ($m = 0; $m < 60; $m += $step) {
                 $allowedMinutes[] = str_pad((string) $m, 2, '0', STR_PAD_LEFT);
             }
 
-            if (!$date || !$time) {
-                $error = 'Please select both a date and a time.';
-            } elseif (!in_array(substr($time, 3, 2), $allowedMinutes, true)) {
-                $error = 'Please select a valid time slot.';
-            } elseif (new \DateTime($date) < new \DateTime('today')) {
-                $error = 'Appointment date cannot be in the past.';
-            } elseif ($employee && $apptRepo->findConflict($employee, new \DateTime($date), new \DateTime($time), null, $org->getTimeStep())) {
-                $error = $employee->getName() . ' already has an appointment at that time. Please choose a different time.';
-            } else {
-                $appt = new Appointment();
-                $appt->setClient($user)
-                     ->setOrganization($org)
-                     ->setEmployee($employee)
-                     ->setAppointmentDate(new \DateTime($date))
-                     ->setAppointmentTime(new \DateTime($time))
-                     ->setNotes($notes ?: null);
+            $renderForm = fn(string $msg) => $this->render('client/book.html.twig', [
+                'organization' => $org,
+                'employees'    => $employees,
+                'services'     => $services,
+                'error'        => $msg,
+            ], new \Symfony\Component\HttpFoundation\Response('', 400));
 
-                $em->persist($appt);
-                $em->flush();
-
-                $this->addFlash('success', $t->trans('flash.appointment_booked'));
-                return $this->redirectToRoute('client_dashboard');
+            if (!$date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                return $renderForm($t->trans('book.error.date_required'));
             }
+            if (!$time || !preg_match('/^\d{2}:\d{2}$/', $time)) {
+                return $renderForm($t->trans('book.error.time_required'));
+            }
+            if (!in_array(substr($time, 3, 2), $allowedMinutes, true)) {
+                return $renderForm($t->trans('book.error.time_slot'));
+            }
+
+            try {
+                $apptDate = new \DateTime($date);
+                $apptTime = new \DateTime($time);
+            } catch (\Exception) {
+                return $renderForm($t->trans('book.error.datetime_invalid'));
+            }
+
+            if ($apptDate < new \DateTime('today')) {
+                return $renderForm($t->trans('book.error.date_past'));
+            }
+            if ($employee && $apptRepo->findConflict($employee, $apptDate, $apptTime, null, $service?->getDurationMinutes() ?? $step)) {
+                return $renderForm($t->trans('book.error.conflict', ['%name%' => $employee->getName()]));
+            }
+
+            $appt = new Appointment();
+            $appt->setClient($user)
+                 ->setOrganization($org)
+                 ->setEmployee($employee)
+                 ->setService($service)
+                 ->setDurationMinutes($service?->getDurationMinutes())
+                 ->setAppointmentDate($apptDate)
+                 ->setAppointmentTime($apptTime)
+                 ->setNotes($notes ?: null);
+
+            $em->persist($appt);
+            $em->flush();
+
+            $this->addFlash('success', $t->trans('flash.appointment_booked'));
+            return $this->redirectToRoute('client_dashboard');
         }
 
         return $this->render('client/book.html.twig', [
-            'organization' => $org,
-            'employees'    => $employees,
-            'error'        => $error,
+            'organization'  => $org,
+            'employees'     => $employees,
+            'services'      => $services,
+            'error'         => $error,
         ]);
     }
 

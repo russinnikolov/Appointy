@@ -1,0 +1,488 @@
+{% extends 'base.html.twig' %}
+{% set activeEmployees = employees|filter(e => e.isActive) %}
+{% set activeServices  = services|filter(s => s.active) %}
+{% block title %}{{ 'org.book'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block head %}
+<style>
+/* ── Service cards ── */
+.service-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.svc-btn { border: 1.5px solid #e5e7eb; border-radius: 12px; background: #fff; padding: 12px 14px;
+           cursor: pointer; text-align: left; transition: .15s; width: 100%; }
+.svc-btn:hover  { border-color: #6366f1; background: #f5f3ff; }
+.svc-btn.selected { border-color: #6366f1; background: #ede9fe; }
+.svc-btn .svc-name { font-size: .88rem; font-weight: 700; color: #111; display: block; margin-bottom: 4px; }
+.svc-btn .svc-meta { font-size: .73rem; color: #6b7280; display: flex; gap: 8px; flex-wrap: wrap; }
+.svc-btn.selected .svc-meta { color: #5b21b6; }
+
+/* ── Date carousel ── */
+.picker-card { border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; background: #fff;
+               box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+.picker-header { display: flex; align-items: center; justify-content: space-between;
+                 padding: 12px 16px; border-bottom: 1px solid #f3f4f6; }
+.picker-header .month-label { font-weight: 700; font-size: .95rem; color: #111; }
+.nav-arrow { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e5e7eb;
+             background: #f9fafb; display: flex; align-items: center; justify-content: center;
+             cursor: pointer; transition: .15s; color: #6b7280; }
+.nav-arrow:hover   { background: #ede9fe; border-color: #6366f1; color: #6366f1; }
+.nav-arrow.disabled { opacity: .35; pointer-events: none; }
+
+.date-strip { display: grid; grid-template-columns: repeat(7, 1fr); }
+.date-btn { display: flex; flex-direction: column; align-items: center; padding: 10px 4px 12px;
+            cursor: pointer; transition: .15s; border-right: 1px solid #f3f4f6; user-select: none; }
+.date-btn:last-child { border-right: none; }
+.date-btn .d-name { font-size: .65rem; font-weight: 700; text-transform: uppercase;
+                    color: #9ca3af; margin-bottom: 4px; }
+.date-btn .d-num  { width: 34px; height: 34px; border-radius: 50%; display: flex;
+                    align-items: center; justify-content: center; font-size: .95rem;
+                    font-weight: 700; color: #111; transition: .15s; }
+.date-btn:hover:not(.disabled) .d-num { background: #ede9fe; color: #6366f1; }
+.date-btn.selected .d-num  { background: #6366f1; color: #fff; }
+.date-btn.selected .d-name { color: #6366f1; }
+.date-btn.disabled { cursor: default; opacity: .35; }
+.date-btn.today .d-name::after { content: '·'; display: block; text-align: center;
+                                  color: #6366f1; font-size: .8rem; line-height: .5; }
+
+/* ── Time grid ── */
+.time-section { margin-top: 20px; }
+.time-section-label { font-size: .78rem; font-weight: 700; text-transform: uppercase;
+                      color: #6b7280; margin-bottom: 10px; letter-spacing: .04em; }
+.time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+@media (max-width: 400px) { .time-grid { grid-template-columns: repeat(3, 1fr); } }
+.time-btn { padding: 11px 6px; border-radius: 10px; border: 1.5px solid #e5e7eb;
+            background: #fff; font-size: .85rem; font-weight: 600; color: #374151;
+            cursor: pointer; transition: .15s; text-align: center; }
+.time-btn:hover   { border-color: #6366f1; color: #6366f1; background: #f5f3ff; }
+.time-btn.selected { background: #6366f1; border-color: #6366f1; color: #fff; }
+.time-empty { text-align: center; color: #9ca3af; font-size: .85rem; padding: 24px 0; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-sm-10 col-md-9 col-lg-7">
+        <a href="{{ path('public_organization', {id: organization.id}) }}"
+           class="btn btn-link text-muted ps-0 mb-3 small">
+            <i class="bi bi-arrow-left me-1"></i>{{ 'book.back_to_org'|trans }} {{ organization.name }}
+        </a>
+
+        <div class="card p-4 p-md-5">
+            {# Org header #}
+            <div class="d-flex align-items-center gap-3 mb-4">
+                {% if organization.logoFilename %}
+                    <img src="/uploads/logos/{{ organization.logoFilename }}" alt="{{ organization.name }}"
+                         class="rounded-circle flex-shrink-0"
+                         style="width:52px;height:52px;object-fit:cover;border:1px solid #e5e7eb">
+                {% else %}
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:52px;height:52px;background:#ede9fe;color:#6366f1;font-size:1.5rem">
+                        <i class="bi bi-building"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h5 class="fw-bold mb-0">{{ organization|localized('name') }}</h5>
+                    <p class="text-muted small mb-0">
+                        {% if organization.category %}{{ ('category.' ~ organization.category)|trans }}{% endif %}
+                        {% if organization.fullAddress %} · {{ organization.fullAddress }}{% endif %}
+                    </p>
+                </div>
+            </div>
+
+            {% if error %}
+                <div class="alert alert-danger py-2 small">
+                    <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate id="bookForm">
+
+                {# ── Service selection ────────────────────────────────── #}
+                {% if activeServices is not empty %}
+                <p class="fw-semibold small text-uppercase text-muted mb-2">{{ 'book.choose_service'|trans }}</p>
+                <div class="service-pick mb-4" id="servicePicker">
+                    {% for svc in activeServices %}
+                    <button type="button"
+                            class="svc-btn"
+                            data-service-id="{{ svc.id }}"
+                            data-duration="{{ svc.durationMinutes }}"
+                            data-employee-ids="{{ svc.employeeIds|join(',') }}"
+                            data-for-all="{{ svc.forAllEmployees ? '1' : '0' }}"
+                            onclick="selectService({{ svc.id }}, this)">
+                        <span class="svc-name">{{ svc|localized('name') }}</span>
+                        <span class="svc-meta">
+                            <span><i class="bi bi-clock"></i> {{ svc.durationMinutes }} min</span>
+                            {% if svc.price %}<span><i class="bi bi-tag"></i> €{{ svc.priceFloat|number_format(2) }}</span>{% endif %}
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="service_id" id="selectedServiceId" value="">
+                {% endif %}
+
+                {# ── Employee (optional) ──────────────────────────────── #}
+                {% if activeEmployees is not empty %}
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">
+                        {{ 'book.employee'|trans }}
+                        <span class="text-muted">({{ 'book.employee_optional'|trans }})</span>
+                    </label>
+                    <select name="employee_id" class="form-select" id="employeeSelect"
+                            onchange="onEmployeeChange()">
+                        <option value="">{{ 'book.any_employee'|trans }}</option>
+                        {% for emp in activeEmployees %}
+                            <option value="{{ emp.id }}"
+                                data-lunch-start="{{ emp.lunchBreakStart ? emp.lunchBreakStart|date('H:i') : '' }}"
+                                data-lunch-end="{{ emp.lunchBreakEnd ? emp.lunchBreakEnd|date('H:i') : '' }}"
+                                {{ app.request.request.get('employee_id') == emp.id ? 'selected' : '' }}>
+                                {{ emp.name }}{% if emp.role %} — {{ emp.role }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <hr class="mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'book.your_details'|trans }}</p>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">
+                        {{ 'book.full_name'|trans }} <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="bi bi-person text-muted"></i>
+                        </span>
+                        <input type="text" name="guest_name" class="form-control border-start-0 ps-0"
+                               value="{{ app.request.request.get('guest_name') }}"
+                               required placeholder="{{ 'placeholder.full_name'|trans }}">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">
+                        {{ 'book.phone'|trans }} <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="bi bi-telephone text-muted"></i>
+                        </span>
+                        <input type="tel" name="guest_phone" class="form-control border-start-0 ps-0"
+                               value="{{ app.request.request.get('guest_phone') }}"
+                               required placeholder="{{ 'placeholder.phone'|trans }}"
+                               pattern="^\+?[\d\s\-\.\(\)]{7,20}$"
+                               title="{{ 'validation.phone'|trans }}">
+                    </div>
+                </div>
+
+                <hr class="mb-4">
+                <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'book.choose_datetime'|trans }}</p>
+
+                <input type="hidden" name="date" id="selectedDate" value="" required>
+                <input type="hidden" name="time" id="selectedTime" value="" required>
+
+                <div class="mb-2">
+                    <label class="form-label fw-semibold small mb-2">{{ 'book.date'|trans }}</label>
+                    <div class="picker-card">
+                        <div class="picker-header">
+                            <button type="button" class="nav-arrow" id="prevWeek">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <span class="month-label" id="monthLabel"></span>
+                            <button type="button" class="nav-arrow" id="nextWeek">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div class="date-strip" id="dateStrip"></div>
+                    </div>
+                </div>
+
+                <div class="time-section" id="timeSection" style="display:none">
+                    <div class="time-section-label">
+                        <i class="bi bi-clock me-1"></i>{{ 'book.available_times'|trans }}
+                    </div>
+                    <div class="time-grid" id="timeGrid"></div>
+                    <div class="time-empty" id="timeEmpty" style="display:none">
+                        <i class="bi bi-calendar-x me-1"></i>{{ 'book.no_slots'|trans }}
+                    </div>
+                </div>
+
+                <div class="mb-4 mt-4">
+                    <label class="form-label fw-semibold small">
+                        {{ 'common.notes'|trans }}
+                        <span class="text-muted">({{ 'common.optional'|trans }})</span>
+                    </label>
+                    <textarea name="notes" class="form-control" rows="2"
+                              placeholder="{{ 'book.notes_placeholder'|trans }}">{{ app.request.request.get('notes') }}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold"
+                        id="submitBtn" disabled>
+                    <i class="bi bi-calendar-check me-1"></i>{{ 'book.submit_guest'|trans }}
+                </button>
+
+                <p class="text-center text-muted small mt-3 mb-0">
+                    {{ 'book.no_account_note'|trans }}
+                </p>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% set dayAbbr = [
+    'cal.day.0'|trans, 'cal.day.1'|trans, 'cal.day.2'|trans,
+    'cal.day.3'|trans, 'cal.day.4'|trans, 'cal.day.5'|trans, 'cal.day.6'|trans
+] %}
+{% set monthNames = [
+    'cal.month.0'|trans, 'cal.month.1'|trans, 'cal.month.2'|trans,
+    'cal.month.3'|trans, 'cal.month.4'|trans, 'cal.month.5'|trans,
+    'cal.month.6'|trans, 'cal.month.7'|trans, 'cal.month.8'|trans,
+    'cal.month.9'|trans, 'cal.month.10'|trans, 'cal.month.11'|trans
+] %}
+<script>
+const orgHours   = {{ organization.workingHours|json_encode|raw }};
+const nonstop    = {{ organization.nonstop ? 'true' : 'false' }};
+const timeStep   = {{ organization.timeStep }};
+const hasServices = {{ activeServices is not empty ? 'true' : 'false' }};
+const dayNames   = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const phpDayMap  = { sunday:0, monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6 };
+const DAY_ABBR   = {{ dayAbbr|json_encode|raw }};
+const MONTH_NAMES = {{ monthNames|json_encode|raw }};
+const MSG_VALIDATION = {{ 'book.validation_msg'|trans|json_encode|raw }};
+
+const empHoursMap = {
+    {% for emp in activeEmployees %}
+        {{ emp.id }}: {{ emp.workingHours ? emp.workingHours|json_encode|raw : 'null' }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+
+let windowStart     = startOfToday();
+let selectedDate    = null;
+let selectedTime    = null;
+let selectedService = null;
+let busySlots       = [];
+let blockedRanges   = [];
+let workingHours    = orgHours;
+let disabledDays    = getDisabledDays(orgHours);
+
+function startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+function addDays(d, n)  { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function isoDate(d)     {
+    return d.getFullYear() + '-' +
+           String(d.getMonth()+1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+}
+
+function getDisabledDays(hours) {
+    if (nonstop) return [];
+    return Object.entries(hours)
+        .filter(([,cfg]) => !cfg.enabled)
+        .map(([day]) => phpDayMap[day]);
+}
+
+function getEffectiveHours(empId) {
+    return (empId && empHoursMap[empId]) ? empHoursMap[empId] : orgHours;
+}
+
+function getSelectedEmployeeId() {
+    const sel = document.getElementById('employeeSelect');
+    return sel ? (sel.value ? parseInt(sel.value) : null) : null;
+}
+
+function getLunch() {
+    const sel = document.getElementById('employeeSelect');
+    if (!sel || !sel.value) return { start: null, end: null };
+    const opt = sel.options[sel.selectedIndex];
+    return { start: opt.dataset.lunchStart || null, end: opt.dataset.lunchEnd || null };
+}
+
+// ── Service filtering ────────────────────────────────────────────────────────
+function filterServicesForEmployee(empId) {
+    if (!hasServices) return;
+    document.querySelectorAll('.svc-btn').forEach(btn => {
+        const forAll = btn.dataset.forAll === '1';
+        const empIds = btn.dataset.employeeIds
+            ? btn.dataset.employeeIds.split(',').map(Number).filter(Boolean)
+            : [];
+        const visible = !empId || forAll || empIds.includes(empId);
+        btn.style.display = visible ? '' : 'none';
+        if (!visible && btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            selectedService = null;
+            document.getElementById('selectedServiceId').value = '';
+            updateSubmitBtn();
+        }
+    });
+}
+
+function selectService(id, btn) {
+    selectedService = id;
+    document.getElementById('selectedServiceId').value = id;
+    document.querySelectorAll('.svc-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    updateSubmitBtn();
+}
+
+// ── Date strip ───────────────────────────────────────────────────────────────
+function renderDateStrip() {
+    const today = startOfToday();
+    const strip = document.getElementById('dateStrip');
+    const label = document.getElementById('monthLabel');
+    strip.innerHTML = '';
+
+    const months = new Set();
+    for (let i = 0; i < 7; i++) {
+        const d = addDays(windowStart, i);
+        months.add(MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear());
+    }
+    label.textContent = [...months].join(' / ');
+    document.getElementById('prevWeek').classList.toggle('disabled', windowStart <= today);
+
+    for (let i = 0; i < 7; i++) {
+        const d        = addDays(windowStart, i);
+        const isPast   = d < today;
+        const isClosed = disabledDays.includes(d.getDay());
+        const isToday  = isoDate(d) === isoDate(today);
+        const isSel    = selectedDate && isoDate(d) === isoDate(selectedDate);
+
+        const btn = document.createElement('div');
+        btn.className = 'date-btn'
+            + (isPast || isClosed ? ' disabled' : '')
+            + (isToday ? ' today' : '')
+            + (isSel   ? ' selected' : '');
+        btn.innerHTML = `<span class="d-name">${DAY_ABBR[d.getDay()]}</span>
+                         <span class="d-num">${d.getDate()}</span>`;
+        if (!isPast && !isClosed) btn.addEventListener('click', () => selectDate(d));
+        strip.appendChild(btn);
+    }
+}
+
+function selectDate(d) {
+    selectedDate = d;
+    selectedTime = null;
+    document.getElementById('selectedDate').value = isoDate(d);
+    document.getElementById('selectedTime').value = '';
+    updateSubmitBtn();
+    renderDateStrip();
+    loadSlots();
+}
+
+// ── Busy slots ───────────────────────────────────────────────────────────────
+async function loadSlots() {
+    busySlots     = [];
+    blockedRanges = [];
+    const empId   = getSelectedEmployeeId();
+
+    if (empId) {
+        try {
+            const res  = await fetch(`/api/busy-slots?employee_id=${empId}&date=${isoDate(selectedDate)}`);
+            const data = await res.json();
+            busySlots     = data.booked  || [];
+            blockedRanges = data.blocked || [];
+        } catch {}
+    }
+    renderTimeGrid();
+}
+
+function isUnavailable(ts) {
+    if (busySlots.includes(ts)) return true;
+    const tMin = toMin(ts);
+    return blockedRanges.some(b => tMin >= toMin(b.start) && tMin < toMin(b.end));
+}
+
+// ── Time grid ────────────────────────────────────────────────────────────────
+function renderTimeGrid() {
+    const section = document.getElementById('timeSection');
+    const grid    = document.getElementById('timeGrid');
+    const empty   = document.getElementById('timeEmpty');
+    section.style.display = '';
+    grid.innerHTML = '';
+    empty.style.display = 'none';
+
+    const day = dayNames[selectedDate.getDay()];
+    const cfg = workingHours[day];
+    if (!nonstop && (!cfg || !cfg.enabled)) { empty.style.display = ''; return; }
+
+    const openMin  = nonstop ? 0     : toMin(cfg.open);
+    const closeMin = nonstop ? 24*60 : toMin(cfg.close);
+    const lunch    = getLunch();
+    const lsMin    = lunch.start ? toMin(lunch.start) : null;
+    const leMin    = lunch.end   ? toMin(lunch.end)   : null;
+
+    let count = 0;
+    for (let t = openMin; t < closeMin; t += timeStep) {
+        if (lsMin !== null && t >= lsMin && t < leMin) continue;
+        const ts = toStr(t);
+        if (isUnavailable(ts)) continue;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'time-btn' + (selectedTime === ts ? ' selected' : '');
+        btn.textContent = ts;
+        btn.addEventListener('click', () => selectTime(ts));
+        grid.appendChild(btn);
+        count++;
+    }
+    if (count === 0) empty.style.display = '';
+}
+
+function selectTime(ts) {
+    selectedTime = ts;
+    document.getElementById('selectedTime').value = ts;
+    updateSubmitBtn();
+    document.querySelectorAll('.time-btn').forEach(b =>
+        b.classList.toggle('selected', b.textContent === ts));
+}
+
+function updateSubmitBtn() {
+    document.getElementById('submitBtn').disabled = !(!!selectedDate && !!selectedTime);
+}
+
+// ── Employee change ──────────────────────────────────────────────────────────
+async function onEmployeeChange() {
+    const empId  = getSelectedEmployeeId();
+    workingHours = getEffectiveHours(empId);
+    disabledDays = getDisabledDays(workingHours);
+
+    if (selectedDate && disabledDays.includes(selectedDate.getDay())) {
+        selectedDate = null;
+        selectedTime = null;
+        document.getElementById('selectedDate').value = '';
+        document.getElementById('selectedTime').value = '';
+        updateSubmitBtn();
+    }
+
+    filterServicesForEmployee(empId);
+    renderDateStrip();
+    if (selectedDate) await loadSlots();
+}
+
+// ── Nav arrows ───────────────────────────────────────────────────────────────
+document.getElementById('prevWeek').addEventListener('click', () => {
+    const today = startOfToday();
+    windowStart = addDays(windowStart, -7);
+    if (windowStart < today) windowStart = today;
+    renderDateStrip();
+});
+document.getElementById('nextWeek').addEventListener('click', () => {
+    windowStart = addDays(windowStart, 7);
+    renderDateStrip();
+});
+
+document.getElementById('bookForm').addEventListener('submit', e => {
+    if (!document.getElementById('selectedDate').value ||
+        !document.getElementById('selectedTime').value) {
+        e.preventDefault();
+        alert(MSG_VALIDATION);
+    }
+});
+
+// Init
+filterServicesForEmployee(null);
+renderDateStrip();
+</script>
+{% endblock %}

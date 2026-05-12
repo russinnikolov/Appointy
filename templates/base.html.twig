@@ -46,6 +46,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ path('business_services') }}">
+                                <i class="bi bi-bag-heart me-1"></i>{{ 'nav.services'|trans }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="{{ path('business_blocked_times') }}">
                                 <i class="bi bi-slash-circle me-1"></i>{{ 'nav.blocked_times'|trans }}
                             </a>
@@ -112,22 +117,10 @@
                             <i class="bi bi-person me-1"></i>{{ 'nav.login'|trans }}
                         </a>
                     </li>
-                    <li class="nav-item dropdown">
-                        <a class="btn btn-primary btn-sm dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                    <li class="nav-item">
+                        <a class="btn btn-primary btn-sm" href="{{ path('register') }}">
                             <i class="bi bi-person-plus me-1"></i>{{ 'nav.register'|trans }}
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li>
-                                <a class="dropdown-item" href="{{ path('register', {type: 'client'}) }}">
-                                    <i class="bi bi-person me-2"></i>{{ 'nav.as_client'|trans }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ path('register', {type: 'business'}) }}">
-                                    <i class="bi bi-building me-2"></i>{{ 'nav.as_business'|trans }}
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                 {% endif %}
 

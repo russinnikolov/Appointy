@@ -81,6 +81,25 @@
     </div>
 </div>
 
+{# ── Main tabs ──────────────────────────────────────────────────── #}
+<ul class="nav nav-tabs mb-3" id="dashTabs">
+    <li class="nav-item">
+        <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-calendar">
+            <i class="bi bi-calendar3 me-1"></i>{{ 'dashboard.tab_calendar'|trans }}
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-reports">
+            <i class="bi bi-bar-chart-line me-1"></i>{{ 'dashboard.tab_reports'|trans }}
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+{# ── Calendar tab ───────────────────────────────────────────────── #}
+<div class="tab-pane fade show active" id="tab-calendar">
+
 <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div class="week-nav">
         <button class="week-nav-btn" id="prevWeek"><i class="bi bi-chevron-left"></i></button>
@@ -104,6 +123,82 @@
 <div class="cal-wrap card p-0" style="overflow:hidden">
     <div id="calInner" class="cal-wrap" style="padding:0"></div>
 </div>
+
+</div>{# /tab-calendar #}
+
+{# ── Reports tab ────────────────────────────────────────────────── #}
+<div class="tab-pane fade" id="tab-reports">
+<div class="row g-4">
+
+    {# Report 1 — Custom range #}
+    <div class="col-lg-6">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-1"><i class="bi bi-funnel me-2 text-primary"></i>{{ 'report.custom_title'|trans }}</h6>
+            <p class="text-muted small mb-3">{{ 'report.custom_desc'|trans }}</p>
+
+            <form id="reportCustomForm" novalidate>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'report.date_from'|trans }} <span class="text-danger">*</span></label>
+                        <input type="date" id="cr_from" class="form-control" required>
+                        <div class="invalid-feedback">{{ 'report.required_field'|trans }}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">{{ 'report.date_to'|trans }} <span class="text-danger">*</span></label>
+                        <input type="date" id="cr_to" class="form-control" required>
+                        <div class="invalid-feedback">{{ 'report.required_field'|trans }}</div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'report.status'|trans }}</label>
+                    <select id="cr_status" class="form-select">
+                        <option value="">{{ 'report.all_statuses'|trans }}</option>
+                        <option value="pending">{{ 'status.pending'|trans }}</option>
+                        <option value="confirmed">{{ 'status.confirmed'|trans }}</option>
+                        <option value="cancelled">{{ 'status.cancelled'|trans }}</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">{{ 'report.employee'|trans }}</label>
+                    <select id="cr_employee" class="form-select">
+                        <option value="">{{ 'report.all_employees'|trans }}</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.name }}{% if emp.role %} — {{ emp.role }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="cr_error" class="alert alert-danger py-2 small d-none"></div>
+                <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                    <i class="bi bi-download me-1"></i>{{ 'report.execute'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {# Report 2 — Monthly #}
+    <div class="col-lg-6">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-1"><i class="bi bi-calendar-month me-2 text-success"></i>{{ 'report.monthly_title'|trans }}</h6>
+            <p class="text-muted small mb-3">{{ 'report.monthly_desc'|trans }}</p>
+
+            <form id="reportMonthlyForm" novalidate>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">{{ 'report.month'|trans }} <span class="text-danger">*</span></label>
+                    <input type="month" id="mr_month" class="form-control" required>
+                    <div class="invalid-feedback">{{ 'report.required_field'|trans }}</div>
+                </div>
+                <div id="mr_error" class="alert alert-danger py-2 small d-none"></div>
+                <button type="submit" class="btn btn-success w-100 fw-semibold mt-auto">
+                    <i class="bi bi-download me-1"></i>{{ 'report.execute'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+</div>{# /tab-reports #}
+
+</div>{# /tab-content #}
 
 <div class="modal fade" id="apptModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -584,5 +679,84 @@ document.getElementById('collapseBtn').addEventListener('click', () => {
 });
 
 renderCalendar();
+
+// ── Reports ────────────────────────────────────────────────────────────────
+const customReportUrl  = {{ path('business_report_custom')|json_encode|raw }};
+const monthlyReportUrl = {{ path('business_report_monthly')|json_encode|raw }};
+
+function showError(elId, msg) {
+    const el = document.getElementById(elId);
+    el.textContent = msg;
+    el.classList.remove('d-none');
+}
+function clearError(elId) {
+    document.getElementById(elId).classList.add('d-none');
+}
+
+document.getElementById('reportCustomForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    clearError('cr_error');
+
+    const from     = document.getElementById('cr_from').value;
+    const to       = document.getElementById('cr_to').value;
+    const status   = document.getElementById('cr_status').value;
+    const employee = document.getElementById('cr_employee').value;
+
+    if (!from) {
+        document.getElementById('cr_from').classList.add('is-invalid');
+        showError('cr_error', {{ 'report.error_no_from'|trans|json_encode|raw }});
+        return;
+    }
+    document.getElementById('cr_from').classList.remove('is-invalid');
+
+    if (!to) {
+        document.getElementById('cr_to').classList.add('is-invalid');
+        showError('cr_error', {{ 'report.error_no_to'|trans|json_encode|raw }});
+        return;
+    }
+    document.getElementById('cr_to').classList.remove('is-invalid');
+
+    if (from > to) {
+        document.getElementById('cr_from').classList.add('is-invalid');
+        document.getElementById('cr_to').classList.add('is-invalid');
+        showError('cr_error', {{ 'report.error_date_order'|trans|json_encode|raw }});
+        return;
+    }
+    document.getElementById('cr_from').classList.remove('is-invalid');
+    document.getElementById('cr_to').classList.remove('is-invalid');
+
+    const params = new URLSearchParams({ date_from: from, date_to: to });
+    if (status)   params.set('status', status);
+    if (employee) params.set('employee_id', employee);
+
+    window.location.href = customReportUrl + '?' + params.toString();
+});
+
+document.getElementById('reportMonthlyForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    clearError('mr_error');
+
+    const month = document.getElementById('mr_month').value;
+    if (!month) {
+        document.getElementById('mr_month').classList.add('is-invalid');
+        showError('mr_error', {{ 'report.error_no_month'|trans|json_encode|raw }});
+        return;
+    }
+    document.getElementById('mr_month').classList.remove('is-invalid');
+
+    window.location.href = monthlyReportUrl + '?month=' + encodeURIComponent(month);
+});
+
+// Clear invalid state on input
+['cr_from','cr_to'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+        document.getElementById(id).classList.remove('is-invalid');
+        clearError('cr_error');
+    });
+});
+document.getElementById('mr_month').addEventListener('input', () => {
+    document.getElementById('mr_month').classList.remove('is-invalid');
+    clearError('mr_error');
+});
 </script>
 {% endblock %}

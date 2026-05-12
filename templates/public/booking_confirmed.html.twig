@@ -7,15 +7,21 @@
         <div class="card p-4 p-md-5 text-center">
             <div style="font-size:3.5rem; color:#059669"><i class="bi bi-check-circle-fill"></i></div>
             <h4 class="fw-bold mt-3 mb-1">{{ 'public.booking_confirmed.booked'|trans }}</h4>
-            <p class="text-muted mb-4">{{ 'public.booking_confirmed.text'|trans }}</p>
+            <p class="text-muted mb-4">{{ 'public.booking_confirmed.text'|trans({'%name%': organization|localized('name')}) }}</p>
 
             <div class="bg-light rounded-3 p-3 text-start mb-4">
                 <div class="row g-2 small">
                     <div class="col-5 text-muted fw-semibold">{{ 'public.booking_confirmed.org'|trans }}</div>
-                    <div class="col-7">{{ organization.name }}</div>
+                    <div class="col-7">{{ organization|localized('name') }}</div>
 
                     <div class="col-5 text-muted fw-semibold">{{ 'public.booking_confirmed.employee'|trans }}</div>
-                    <div class="col-7">{{ employee.name }}{% if employee.role %} ({{ employee.role }}){% endif %}</div>
+                    <div class="col-7">
+                        {% if employee %}
+                            {{ employee.name }}{% if employee.role %} ({{ employee.role }}){% endif %}
+                        {% else %}
+                            <span class="text-muted">{{ 'book.any_employee'|trans }}</span>
+                        {% endif %}
+                    </div>
 
                     <div class="col-5 text-muted fw-semibold">{{ 'common.date'|trans }}</div>
                     <div class="col-7">{{ appointment.appointmentDate|date('D, M j Y') }}</div>

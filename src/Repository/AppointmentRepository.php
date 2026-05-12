@@ -55,6 +55,39 @@ class AppointmentRepository extends ServiceEntityRepository
     }
 
     /**
+     * Filtered report query for a given organization.
+     * @return Appointment[]
+     */
+    public function findForReport(
+        Organization $org,
+        \DateTimeInterface $dateFrom,
+        \DateTimeInterface $dateTo,
+        ?string $status = null,
+        ?Employee $employee = null
+    ): array {
+        $qb = $this->createQueryBuilder('a')
+            ->leftJoin('a.employee', 'e')->addSelect('e')
+            ->leftJoin('a.client', 'c')->addSelect('c')
+            ->andWhere('a.organization = :org')
+            ->andWhere('a.appointmentDate >= :from')
+            ->andWhere('a.appointmentDate <= :to')
+            ->setParameter('org', $org)
+            ->setParameter('from', $dateFrom)
+            ->setParameter('to', $dateTo)
+            ->orderBy('a.appointmentDate', 'ASC')
+            ->addOrderBy('a.appointmentTime', 'ASC');
+
+        if ($status) {
+            $qb->andWhere('a.status = :status')->setParameter('status', $status);
+        }
+        if ($employee) {
+            $qb->andWhere('a.employee = :emp')->setParameter('emp', $employee);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Returns an existing non-cancelled appointment for the same employee/date/time.
      * Pass $excludeId to ignore the appointment being rescheduled.
      */

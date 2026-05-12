@@ -40,6 +40,22 @@ class Organization
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $zipCode = null;
 
+    // ── Auto-translated fields ────────────────────────────────────────────────
+    #[ORM\Column(length: 5, options: ['default' => 'bg'])]
+    private string $sourceLocale = 'bg';
+
+    #[ORM\Column(length: 150, nullable: true)]
+    private ?string $nameEn = null;
+
+    #[ORM\Column(length: 150, nullable: true)]
+    private ?string $nameBg = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $descriptionEn = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $descriptionBg = null;
+
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $latitude = null;
 
@@ -76,6 +92,9 @@ class Organization
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: \App\Entity\BlockedPeriod::class, orphanRemoval: true)]
     private Collection $blockedPeriods;
 
+    #[ORM\OneToMany(mappedBy: 'organization', targetEntity: \App\Entity\Service::class, orphanRemoval: true)]
+    private Collection $services;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -89,6 +108,7 @@ class Organization
         $this->employees      = new ArrayCollection();
         $this->appointments   = new ArrayCollection();
         $this->blockedPeriods = new ArrayCollection();
+        $this->services       = new ArrayCollection();
         $this->createdAt    = new \DateTimeImmutable();
         $this->updatedAt    = new \DateTimeImmutable();
     }
@@ -165,6 +185,44 @@ class Organization
     public function getDescription(): ?string { return $this->description; }
     public function setDescription(?string $v): static { $this->description = $v; return $this; }
 
+    // ── Translation helpers ───────────────────────────────────────────────────
+
+    public function getSourceLocale(): string { return $this->sourceLocale; }
+    public function setSourceLocale(string $v): static { $this->sourceLocale = $v; return $this; }
+
+    public function getNameEn(): ?string { return $this->nameEn; }
+    public function setNameEn(?string $v): static { $this->nameEn = $v; return $this; }
+
+    public function getNameBg(): ?string { return $this->nameBg; }
+    public function setNameBg(?string $v): static { $this->nameBg = $v; return $this; }
+
+    public function getDescriptionEn(): ?string { return $this->descriptionEn; }
+    public function setDescriptionEn(?string $v): static { $this->descriptionEn = $v; return $this; }
+
+    public function getDescriptionBg(): ?string { return $this->descriptionBg; }
+    public function setDescriptionBg(?string $v): static { $this->descriptionBg = $v; return $this; }
+
+    /** Generic getter used by the Twig extension: field = 'name' | 'description', locale = 'en' | 'bg' */
+    public function getLocalized(string $field, string $locale): ?string
+    {
+        $getter = 'get' . ucfirst($field) . ucfirst($locale);
+        return method_exists($this, $getter) ? $this->$getter() : null;
+    }
+
+    public function setTranslatedName(string $locale, ?string $value): static
+    {
+        $setter = 'setName' . ucfirst($locale);
+        if (method_exists($this, $setter)) { $this->$setter($value); }
+        return $this;
+    }
+
+    public function setTranslatedDescription(string $locale, ?string $value): static
+    {
+        $setter = 'setDescription' . ucfirst($locale);
+        if (method_exists($this, $setter)) { $this->$setter($value); }
+        return $this;
+    }
+
     public function getCategory(): ?string { return $this->category; }
     public function setCategory(?string $v): static { $this->category = $v; return $this; }
 
@@ -191,4 +249,7 @@ class Organization
 
     /** @return Collection<int, Appointment> */
     public function getAppointments(): Collection { return $this->appointments; }
+
+    /** @return Collection<int, \App\Entity\Service> */
+    public function getServices(): Collection { return $this->services; }
 }

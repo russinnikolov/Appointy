@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Organization;
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Service\TranslationApiService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,7 +40,8 @@ class AuthController extends AbstractController
         UserPasswordHasherInterface $hasher,
         EntityManagerInterface $em,
         UserRepository $userRepo,
-        TranslatorInterface $t
+        TranslatorInterface $t,
+        TranslationApiService $translator
     ): Response {
         if ($this->getUser()) {
             return $this->redirectToRoute('post_login');
@@ -111,6 +113,7 @@ class AuthController extends AbstractController
                         ->setCategory($orgCat ?: null)
                         ->setDescription($orgDesc ?: null);
 
+                    $translator->translateOrg($org, $request->getLocale());
                     $em->persist($org);
                     $user->setOrganization($org);
                 }

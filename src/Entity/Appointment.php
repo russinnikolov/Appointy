@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\AppointmentRepository;
+use App\Entity\Service;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AppointmentRepository::class)]
@@ -31,6 +32,10 @@ class Appointment
     #[ORM\ManyToOne(inversedBy: 'appointments')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Employee $employee = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Service $service = null;
 
     /** Guest name when booked without an account */
     #[ORM\Column(length: 150, nullable: true)]
@@ -86,6 +91,9 @@ class Appointment
 
     public function getEmployee(): ?Employee { return $this->employee; }
     public function setEmployee(?Employee $v): static { $this->employee = $v; return $this; }
+
+    public function getService(): ?Service { return $this->service; }
+    public function setService(?Service $v): static { $this->service = $v; return $this; }
 
     public function getGuestName(): ?string { return $this->guestName; }
     public function setGuestName(?string $v): static { $this->guestName = $v; return $this; }

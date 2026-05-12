@@ -3,8 +3,19 @@
 {% set singleEmployee = activeEmployees|length == 1 ? activeEmployees|first : null %}
 {% block title %}{{ 'org.book'|trans }} — {{ organization.name }}{% endblock %}
 
+{% set activeServices = services|filter(s => s.active) %}
+
 {% block head %}
 <style>
+/* ── Service cards ── */
+.service-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 4px; }
+.svc-btn { border: 1.5px solid #e5e7eb; border-radius: 12px; background: #fff; padding: 12px 14px; cursor: pointer; text-align: left; transition: .15s; }
+.svc-btn:hover { border-color: #6366f1; background: #f5f3ff; }
+.svc-btn.selected { border-color: #6366f1; background: #ede9fe; }
+.svc-btn .svc-name { font-size: .88rem; font-weight: 700; color: #111; display: block; margin-bottom: 4px; }
+.svc-btn .svc-meta { font-size: .73rem; color: #6b7280; display: flex; gap: 8px; flex-wrap: wrap; }
+.svc-btn.selected .svc-meta { color: #5b21b6; }
+
 /* ── Date carousel ── */
 .picker-card { border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
 .picker-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f3f4f6; }
@@ -72,6 +83,30 @@
             {% endif %}
 
             <form method="post" novalidate id="bookForm">
+
+                {# ── Service selection ──────────────────────────────────── #}
+                {% if activeServices is not empty %}
+                <p class="fw-semibold small text-uppercase text-muted mb-2">{{ 'book.choose_service'|trans }}</p>
+                <div class="service-pick mb-4" id="servicePicker">
+                    {% for svc in activeServices %}
+                    <button type="button"
+                            class="svc-btn"
+                            data-service-id="{{ svc.id }}"
+                            data-duration="{{ svc.durationMinutes }}"
+                            data-employee-ids="{{ svc.employeeIds|join(',') }}"
+                            data-for-all="{{ svc.forAllEmployees ? '1' : '0' }}"
+                            onclick="selectService({{ svc.id }}, this)">
+                        <span class="svc-name">{{ svc|localized('name') }}</span>
+                        <span class="svc-meta">
+                            <span><i class="bi bi-clock"></i> {{ svc.durationMinutes }} min</span>
+                            {% if svc.price %}<span><i class="bi bi-tag"></i> €{{ svc.priceFloat|number_format(2) }}</span>{% endif %}
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="service_id" id="selectedServiceId" value="">
+                {% endif %}
+
                 {% if activeEmployees is not empty and singleEmployee is null %}
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">{{ 'book.employee'|trans }} <span class="text-muted">({{ 'book.employee_optional'|trans }})</span></label>
@@ -163,7 +198,8 @@ const nonstop    = {{ organization.nonstop ? 'true' : 'false' }};
 const timeStep   = {{ organization.timeStep }};
 const dayNames   = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 const phpDayMap  = { sunday:0, monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6 };
-const singleEmpId = {{ singleEmployee ? singleEmployee.id : 'null' }};
+const singleEmpId    = {{ singleEmployee ? singleEmployee.id : 'null' }};
+const hasServices    = {{ activeServices is not empty ? 'true' : 'false' }};
 const singleLunch = {
     start: {{ singleEmployee and singleEmployee.lunchBreakStart ? ('"'~singleEmployee.lunchBreakStart|date('H:i')~'"')|raw : 'null' }},
     end:   {{ singleEmployee and singleEmployee.lunchBreakEnd   ? ('"'~singleEmployee.lunchBreakEnd|date('H:i')~'"')|raw   : 'null' }}
@@ -199,11 +235,12 @@ const MSG_VALIDATION   = {{ 'book.validation_msg'|trans|json_encode|raw }};
 const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
 const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
 
-let windowStart    = startOfToday();
-let selectedDate   = null;
-let selectedTime   = null;
-let busySlots      = [];
-let blockedRanges  = [];
+let windowStart     = startOfToday();
+let selectedDate    = null;
+let selectedTime    = null;
+let selectedService = null;
+let busySlots       = [];
+let blockedRanges   = [];
 
 function startOfToday() {
     const d = new Date(); d.setHours(0,0,0,0); return d;
@@ -258,7 +295,7 @@ function selectDate(d) {
     selectedTime = null;
     document.getElementById('selectedDate').value = isoDate(d);
     document.getElementById('selectedTime').value = '';
-    document.getElementById('submitBtn').disabled = true;
+    updateSubmitBtn();
     renderDateStrip();
     loadSlots();
 }
@@ -330,8 +367,22 @@ function isUnavailable(ts) {
 function selectTime(ts) {
     selectedTime = ts;
     document.getElementById('selectedTime').value = ts;
-    document.getElementById('submitBtn').disabled = false;
+    updateSubmitBtn();
     document.querySelectorAll('.time-btn').forEach(b => b.classList.toggle('selected', b.textContent === ts));
+}
+
+function updateSubmitBtn() {
+    document.getElementById('submitBtn').disabled = !(!!selectedDate && !!selectedTime);
+}
+
+function selectService(id, btn) {
+    selectedService = id;
+    document.getElementById('selectedServiceId').value = id;
+    document.querySelectorAll('.svc-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    // Re-filter services when employee might restrict what's shown — reset date/time
+    filterServicesForEmployee(getSelectedEmployeeId());
+    updateSubmitBtn();
 }
 
 function getSelectedEmployeeId() {
@@ -382,6 +433,24 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft')  setPortfolioIdx((_gIdx - 1 + _gPhotos.length) % _gPhotos.length);
 });
 
+function filterServicesForEmployee(empId) {
+    if (!hasServices) return;
+    const btns = document.querySelectorAll('.svc-btn');
+    btns.forEach(btn => {
+        const forAll    = btn.dataset.forAll === '1';
+        const empIds    = btn.dataset.employeeIds ? btn.dataset.employeeIds.split(',').map(Number).filter(Boolean) : [];
+        const visible   = !empId || forAll || empIds.includes(parseInt(empId));
+        btn.style.display = visible ? '' : 'none';
+        // Deselect hidden service
+        if (!visible && btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            selectedService = null;
+            document.getElementById('selectedServiceId').value = '';
+            updateSubmitBtn();
+        }
+    });
+}
+
 async function onEmployeeChange() {
     const empId = getSelectedEmployeeId();
     workingHours = getEffectiveHours(empId);
@@ -391,8 +460,9 @@ async function onEmployeeChange() {
         selectedTime = null;
         document.getElementById('selectedDate').value = '';
         document.getElementById('selectedTime').value = '';
-        document.getElementById('submitBtn').disabled = true;
+        updateSubmitBtn();
     }
+    filterServicesForEmployee(empId);
     renderEmpPortfolio(empId ? (empPortfolioMap[empId] || []) : []);
     renderDateStrip();
     if (selectedDate) await loadSlots();
@@ -417,6 +487,7 @@ document.getElementById('bookForm').addEventListener('submit', e => {
 });
 
 renderEmpPortfolio(singleEmpId ? singleEmpPortfolio : []);
+filterServicesForEmployee(singleEmpId);
 renderDateStrip();
 </script>
 {% endblock %}

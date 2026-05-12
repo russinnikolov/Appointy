@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Organization;
 use App\Entity\User;
+use App\Service\TranslationApiService;
 use App\Util\PhoneValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -57,7 +58,7 @@ class BusinessSettingsController extends AbstractController
     }
 
     #[Route('/info', name: 'business_settings_info')]
-    public function info(Request $request, EntityManagerInterface $em, TranslatorInterface $t): Response
+    public function info(Request $request, EntityManagerInterface $em, TranslatorInterface $t, TranslationApiService $translator): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -98,6 +99,7 @@ class BusinessSettingsController extends AbstractController
                 $org->setLogoFilename($filename);
             }
 
+            $translator->translateOrg($org, $request->getLocale());
             $em->flush();
             $this->addFlash('success', $t->trans('flash.info_updated'));
             return $this->redirectToRoute('business_settings_info');

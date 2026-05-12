@@ -19,5 +19,10 @@ services:
     App\:
         resource: '../src/'
 
+    App\Service\TranslationApiService:
+        arguments:
+            $libreTranslateUrl:    '%env(LIBRETRANSLATE_URL)%'
+            $libreTranslateApiKey: '%env(string:LIBRETRANSLATE_API_KEY)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

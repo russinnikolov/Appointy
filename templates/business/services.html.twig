@@ -1,0 +1,345 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'service.title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block head %}
+<style>
+.service-card {
+    border: 1.5px solid #e5e7eb;
+    border-radius: 14px;
+    background: #fff;
+    transition: box-shadow .15s;
+}
+.service-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.09); }
+.service-card.inactive { opacity: .55; }
+.duration-badge {
+    background: #ede9fe; color: #5b21b6;
+    padding: .25em .65em; border-radius: 999px;
+    font-size: .75rem; font-weight: 700;
+}
+.price-badge {
+    background: #d1fae5; color: #065f46;
+    padding: .25em .65em; border-radius: 999px;
+    font-size: .75rem; font-weight: 700;
+}
+.emp-chip {
+    background: #f3f4f6; color: #374151;
+    border: 1px solid #e5e7eb;
+    padding: .2em .6em; border-radius: 999px;
+    font-size: .72rem; font-weight: 600;
+}
+.emp-chip.all {
+    background: #ede9fe; color: #6366f1;
+    border-color: #c4b5fd;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+<div class="col-lg-10">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-0">{{ 'service.title'|trans }}</h4>
+            <p class="text-muted small mb-0">{{ organization.name }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ path('business_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>{{ 'service.back'|trans }}
+            </a>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#serviceModal" onclick="openCreate()">
+                <i class="bi bi-plus-lg me-1"></i>{{ 'service.add'|trans }}
+            </button>
+        </div>
+    </div>
+
+    {% if services is empty %}
+    <div class="card p-5 text-center">
+        <i class="bi bi-bag-heart display-4 text-muted mb-3 d-block"></i>
+        <h6 class="fw-semibold mb-1">{{ 'service.empty_title'|trans }}</h6>
+        <p class="text-muted small mb-3">{{ 'service.empty_text'|trans }}</p>
+        <div>
+            <button class="btn btn-primary px-4"
+                    data-bs-toggle="modal" data-bs-target="#serviceModal" onclick="openCreate()">
+                <i class="bi bi-plus-lg me-1"></i>{{ 'service.add_first'|trans }}
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div class="row g-3">
+        {% for service in services %}
+        <div class="col-md-6 col-lg-4" id="card-{{ service.id }}">
+            <div class="service-card p-3 h-100 d-flex flex-column gap-2 {{ not service.active ? 'inactive' : '' }}">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="fw-semibold" style="font-size:.95rem">{{ service.name }}</div>
+                    <div class="d-flex gap-1 flex-shrink-0">
+                        <button class="btn btn-sm btn-outline-secondary p-1 lh-1"
+                                title="{{ 'common.edit'|trans }}"
+                                onclick="openEdit({{ service.id }})">
+                            <i class="bi bi-pencil" style="font-size:.8rem"></i>
+                        </button>
+                        <button class="btn btn-sm p-1 lh-1 toggle-btn {{ service.active ? 'btn-outline-warning' : 'btn-outline-success' }}"
+                                title="{{ service.active ? 'service.deactivate'|trans : 'service.activate'|trans }}"
+                                onclick="toggleService({{ service.id }}, this)">
+                            <i class="bi {{ service.active ? 'bi-pause-circle' : 'bi-play-circle' }}" style="font-size:.8rem"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger p-1 lh-1"
+                                title="{{ 'common.delete'|trans }}"
+                                onclick="confirmDelete({{ service.id }}, '{{ service.name|e('js') }}')">
+                            <i class="bi bi-trash" style="font-size:.8rem"></i>
+                        </button>
+                    </div>
+                </div>
+
+                {% if service.description %}
+                <p class="text-muted small mb-0" style="line-height:1.4">{{ service.description|slice(0,100) }}{% if service.description|length > 100 %}…{% endif %}</p>
+                {% endif %}
+
+                <div class="d-flex flex-wrap gap-1 mt-auto">
+                    <span class="duration-badge"><i class="bi bi-clock me-1"></i>{{ service.durationMinutes }} min</span>
+                    {% if service.price %}
+                        <span class="price-badge">€ {{ service.priceFloat|number_format(2) }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex flex-wrap gap-1">
+                    {% if service.forAllEmployees %}
+                        <span class="emp-chip all"><i class="bi bi-people me-1"></i>{{ 'service.all_employees'|trans }}</span>
+                    {% else %}
+                        {% for emp in service.employees %}
+                            <span class="emp-chip">{{ emp.name }}</span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+</div>
+
+{# ── Add / Edit modal ─────────────────────────────────────────────────────── #}
+<div class="modal fade" id="serviceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalTitle">{{ 'service.add'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="serviceForm" method="post" novalidate>
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">{{ 'service.name'|trans }} <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="svcName" class="form-control"
+                               required placeholder="{{ 'service.name_placeholder'|trans }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">{{ 'service.description'|trans }} <span class="text-muted">({{ 'common.optional'|trans }})</span></label>
+                        <textarea name="description" id="svcDescription" class="form-control" rows="2"
+                                  placeholder="{{ 'service.description_placeholder'|trans }}"></textarea>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col">
+                            <label class="form-label fw-semibold small">{{ 'service.duration'|trans }} <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="duration_minutes" id="svcDuration"
+                                       class="form-control" min="1" max="480" value="30" required>
+                                <span class="input-group-text text-muted">min</span>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label class="form-label fw-semibold small">{{ 'service.price'|trans }} <span class="text-muted">({{ 'common.optional'|trans }})</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">€</span>
+                                <input type="number" name="price" id="svcPrice"
+                                       class="form-control" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if employees is not empty %}
+                    <div class="mb-1">
+                        <label class="form-label fw-semibold small">{{ 'service.assign_employees'|trans }}</label>
+
+                        {# "All employees" master toggle #}
+                        <div class="form-check mb-2 p-2 rounded-3" style="background:#ede9fe;border:1.5px solid #c4b5fd">
+                            <input class="form-check-input" type="checkbox"
+                                   id="empAll" onchange="onAllEmployeesChange(this.checked)">
+                            <label class="form-check-label fw-semibold small text-indigo" for="empAll"
+                                   style="color:#5b21b6">
+                                <i class="bi bi-people-fill me-1"></i>{{ 'service.all_employees'|trans }}
+                            </label>
+                            <div class="text-muted" style="font-size:.72rem;margin-top:2px;padding-left:1.5em">
+                                {{ 'service.all_employees_hint'|trans }}
+                            </div>
+                        </div>
+
+                        <div id="empCheckboxes" class="d-flex flex-wrap gap-2">
+                            {% for emp in employees %}
+                            <div class="form-check form-check-inline mb-1">
+                                <input class="form-check-input emp-check" type="checkbox"
+                                       name="employee_ids[]" value="{{ emp.id }}"
+                                       id="emp_{{ emp.id }}"
+                                       onchange="onIndividualEmpChange()">
+                                <label class="form-check-label small" for="emp_{{ emp.id }}">
+                                    {{ emp.name }}{% if emp.role %} <span class="text-muted">({{ emp.role }})</span>{% endif %}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">{{ 'common.cancel'|trans }}</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">
+                        <i class="bi bi-floppy me-1"></i>{{ 'common.save'|trans }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ── Delete confirm modal ────────────────────────────────────────────────── #}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-trash3 text-danger mb-2 d-block" style="font-size:2rem"></i>
+                <p class="fw-semibold mb-1">{{ 'service.delete_confirm'|trans }}</p>
+                <p class="text-muted small" id="deleteServiceName"></p>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">{{ 'common.cancel'|trans }}</button>
+                <form id="deleteForm" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-danger btn-sm">{{ 'common.delete'|trans }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Hidden data for JS ─────────────────────────────────────────────────────── #}
+<script id="servicesData" type="application/json">
+{{ services|map(s => {
+    id: s.id,
+    name: s.name,
+    description: s.description ?? '',
+    duration_minutes: s.durationMinutes,
+    price: s.price ?? '',
+    employee_ids: s.employeeIds
+})|json_encode|raw }}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SERVICES = JSON.parse(document.getElementById('servicesData').textContent);
+const CREATE_URL = '{{ path('business_service_create') }}';
+
+// ── All-employees checkbox logic ─────────────────────────────────────────────
+function onAllEmployeesChange(checked) {
+    const empBoxes = document.querySelectorAll('.emp-check');
+    empBoxes.forEach(cb => {
+        cb.checked  = false;
+        cb.disabled = checked;
+    });
+    document.getElementById('empCheckboxes').style.opacity = checked ? '.4' : '';
+}
+
+function onIndividualEmpChange() {
+    // If any individual box is checked, "All" can't be active
+    const anyChecked = [...document.querySelectorAll('.emp-check')].some(cb => cb.checked);
+    const allBox = document.getElementById('empAll');
+    if (allBox && anyChecked && allBox.checked) {
+        allBox.checked = false;
+        onAllEmployeesChange(false);
+    }
+}
+
+function setAllEmployeesUI(isAll, employeeIds) {
+    const allBox   = document.getElementById('empAll');
+    const empBoxes = document.querySelectorAll('.emp-check');
+    if (!allBox) return;
+
+    if (isAll) {
+        allBox.checked = true;
+        empBoxes.forEach(cb => { cb.checked = false; cb.disabled = true; });
+        document.getElementById('empCheckboxes').style.opacity = '.4';
+    } else {
+        allBox.checked = false;
+        empBoxes.forEach(cb => {
+            cb.checked  = employeeIds.includes(parseInt(cb.value));
+            cb.disabled = false;
+        });
+        document.getElementById('empCheckboxes').style.opacity = '';
+    }
+}
+
+// ── Modal open helpers ────────────────────────────────────────────────────────
+function openCreate() {
+    document.getElementById('modalTitle').textContent = '{{ 'service.add'|trans|e('js') }}';
+    document.getElementById('serviceForm').action = CREATE_URL;
+    document.getElementById('svcName').value        = '';
+    document.getElementById('svcDescription').value = '';
+    document.getElementById('svcDuration').value    = 30;
+    document.getElementById('svcPrice').value       = '';
+    // Default: All employees selected
+    setAllEmployeesUI(true, []);
+}
+
+function openEdit(id) {
+    const s = SERVICES.find(x => x.id === id);
+    if (!s) return;
+
+    document.getElementById('modalTitle').textContent = '{{ 'service.edit'|trans|e('js') }}';
+    document.getElementById('serviceForm').action = `/business/services/${id}/update`;
+    document.getElementById('svcName').value        = s.name;
+    document.getElementById('svcDescription').value = s.description;
+    document.getElementById('svcDuration').value    = s.duration_minutes;
+    document.getElementById('svcPrice').value       = s.price;
+
+    // employee_ids empty → was "all employees"
+    setAllEmployeesUI(s.employee_ids.length === 0, s.employee_ids);
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('serviceModal')).show();
+}
+
+async function toggleService(id, btn) {
+    btn.disabled = true;
+    const res  = await fetch(`/business/services/${id}/toggle`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+        const card = document.getElementById('card-' + id);
+        const inner = card.querySelector('.service-card');
+        inner.classList.toggle('inactive', !data.active);
+        btn.className = `btn btn-sm p-1 lh-1 toggle-btn ${data.active ? 'btn-outline-warning' : 'btn-outline-success'}`;
+        btn.querySelector('i').className = `bi ${data.active ? 'bi-pause-circle' : 'bi-play-circle'}`;
+        btn.title = data.active ? '{{ 'service.deactivate'|trans|e('js') }}' : '{{ 'service.activate'|trans|e('js') }}';
+    }
+    btn.disabled = false;
+}
+
+function confirmDelete(id, name) {
+    document.getElementById('deleteServiceName').textContent = name;
+    document.getElementById('deleteForm').action = `/business/services/${id}/delete`;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteModal')).show();
+}
+
+document.getElementById('serviceForm').addEventListener('submit', function(e) {
+    const name = document.getElementById('svcName').value.trim();
+    const dur  = parseInt(document.getElementById('svcDuration').value);
+    if (!name || !dur || dur < 1) {
+        e.preventDefault();
+        Swal.fire({ icon: 'warning', title: '{{ 'service.validation_msg'|trans|e('js') }}', timer: 2500, showConfirmButton: false });
+    }
+});
+</script>
+{% endblock %}

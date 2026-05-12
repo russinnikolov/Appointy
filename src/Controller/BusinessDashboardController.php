@@ -7,6 +7,7 @@ use App\Entity\BlockedPeriod;
 use App\Entity\User;
 use App\Repository\AppointmentRepository;
 use App\Repository\BlockedPeriodRepository;
+use App\Repository\EmployeeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,7 +22,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class BusinessDashboardController extends AbstractController
 {
     #[Route('', name: 'business_dashboard')]
-    public function index(AppointmentRepository $repo, BlockedPeriodRepository $blockedRepo, TranslatorInterface $t): Response
+    public function index(AppointmentRepository $repo, BlockedPeriodRepository $blockedRepo, EmployeeRepository $empRepo, TranslatorInterface $t): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -48,6 +49,7 @@ class BusinessDashboardController extends AbstractController
             'notes'             => $a->getNotes(),
             'cancel_note'       => $a->getCancellationNote(),
             'duration_minutes'  => $a->getDurationMinutes(),
+            'service_name'      => $a->getService()?->getName(),
         ], $appointments);
 
         $blockedData = array_map(static fn(BlockedPeriod $b) => [
@@ -63,6 +65,7 @@ class BusinessDashboardController extends AbstractController
             'appointments_json' => json_encode($apptData),
             'blocked_json'      => json_encode($blockedData),
             'counts'            => $repo->countByStatus($org),
+            'employees'         => $empRepo->findBy(['organization' => $org, 'isActive' => true], ['name' => 'ASC']),
         ]);
     }
 

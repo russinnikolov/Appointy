@@ -59,6 +59,10 @@ class Employee
     #[ORM\OneToMany(mappedBy: 'employee', targetEntity: Appointment::class)]
     private Collection $appointments;
 
+    /** @var Collection<int, \App\Entity\Service> */
+    #[ORM\ManyToMany(targetEntity: \App\Entity\Service::class, mappedBy: 'employees')]
+    private Collection $services;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -68,6 +72,7 @@ class Employee
     public function __construct()
     {
         $this->appointments = new ArrayCollection();
+        $this->services     = new ArrayCollection();
         $this->createdAt    = new \DateTimeImmutable();
         $this->updatedAt    = new \DateTimeImmutable();
     }
@@ -130,4 +135,7 @@ class Employee
 
     /** @return Collection<int, Appointment> */
     public function getAppointments(): Collection { return $this->appointments; }
+
+    /** @return Collection<int, \App\Entity\Service> */
+    public function getServices(): Collection { return $this->services; }
 }
