@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Appointment;
 use App\Entity\BlockedPeriod;
+use App\Entity\Employee;
 use App\Entity\User;
 use App\Repository\AppointmentRepository;
 use App\Repository\BlockedPeriodRepository;
@@ -60,41 +61,104 @@ class BusinessDashboardController extends AbstractController
             'employee_id' => $b->getEmployee()?->getId(),
         ], $blockedRepo->findByOrganizationOrdered($org));
 
+        $activeEmployees = $empRepo->findBy(['organization' => $org, 'isActive' => true], ['name' => 'ASC']);
+
+        $employeesJs = array_map(static fn(Employee $e) => [
+            'id'   => $e->getId(),
+            'name' => $e->getName(),
+            'role' => $e->getRole(),
+        ], $activeEmployees);
+
         return $this->render('business/dashboard.html.twig', [
-            'organization'      => $org,
-            'appointments_json' => json_encode($apptData),
-            'blocked_json'      => json_encode($blockedData),
-            'counts'            => $repo->countByStatus($org),
-            'employees'         => $empRepo->findBy(['organization' => $org, 'isActive' => true], ['name' => 'ASC']),
+            'organization'       => $org,
+            'appointments_json'  => json_encode($apptData),
+            'blocked_json'       => json_encode($blockedData),
+            'counts'             => $repo->countByStatus($org),
+            'employees'          => $activeEmployees,
+            'org_capacity'       => count($activeEmployees),
+            'org_employees_json' => json_encode($employeesJs),
         ]);
     }
 
     #[Route('/confirm/{id}', name: 'business_confirm', methods: ['POST'])]
-    public function confirm(int $id, AppointmentRepository $repo, EntityManagerInterface $em, TranslatorInterface $t): Response
-    {
+    public function confirm(
+        int $id,
+        Request $request,
+        AppointmentRepository $repo,
+        EmployeeRepository $empRepo,
+        EntityManagerInterface $em,
+        TranslatorInterface $t
+    ): Response {
         /** @var User $user */
         $user = $this->getUser();
+        $org  = $user->getOrganization();
         $appt = $repo->find($id);
 
-        if ($appt && $appt->getOrganization() === $user->getOrganization()
-            && $appt->getStatus() === Appointment::STATUS_PENDING) {
-            $appt->setStatus(Appointment::STATUS_CONFIRMED);
-            $em->flush();
-            $this->addFlash('success', $t->trans('flash.appointment_confirmed'));
+        if (!$appt || $appt->getOrganization() !== $org || $appt->getStatus() !== Appointment::STATUS_PENDING) {
+            return $this->redirectToRoute('business_dashboard');
         }
 
+        // Capacity = number of active employees in this org
+        $capacity       = $empRepo->count(['organization' => $org, 'isActive' => true]);
+        $confirmedCount = $repo->countConfirmedAtSlot($org, $appt->getAppointmentDate(), $appt->getAppointmentTime());
+
+        // Guard: slot already full (should not happen via normal UI)
+        if ($capacity > 0 && $confirmedCount >= $capacity) {
+            $this->addFlash('danger', $t->trans('flash.slot_full'));
+            return $this->redirectToRoute('business_dashboard');
+        }
+
+        // Optionally assign an employee if none was set and the owner picked one
+        $empId = (int) $request->request->get('employee_id', 0);
+        if ($empId && $appt->getEmployee() === null) {
+            $emp = $empRepo->find($empId);
+            if ($emp && $emp->getOrganization() === $org && $emp->isActive()) {
+                $appt->setEmployee($emp);
+            }
+        }
+
+        $appt->setStatus(Appointment::STATUS_CONFIRMED);
+
+        // When this confirmation fills the last available slot, cancel every other
+        // pending appointment at the same date+time for this organisation.
+        if ($capacity > 0 && $confirmedCount + 1 >= $capacity) {
+            $others = $repo->findPendingAtSlot(
+                $org,
+                $appt->getAppointmentDate(),
+                $appt->getAppointmentTime(),
+                $appt->getId()
+            );
+            foreach ($others as $other) {
+                $other->setStatus(Appointment::STATUS_CANCELLED)
+                      ->setCancellationNote($t->trans('flash.cancelled_capacity'));
+            }
+        }
+
+        $em->flush();
+        $this->addFlash('success', $t->trans('flash.appointment_confirmed'));
         return $this->redirectToRoute('business_dashboard');
     }
 
     #[Route('/cancel/{id}', name: 'business_cancel', methods: ['POST'])]
-    public function cancel(int $id, Request $request, AppointmentRepository $repo, EntityManagerInterface $em, TranslatorInterface $t): Response
+    public function cancel(int $id, Request $request, AppointmentRepository $repo, EmployeeRepository $empRepo, EntityManagerInterface $em, TranslatorInterface $t): Response
     {
         /** @var User $user */
         $user = $this->getUser();
+        $org  = $user->getOrganization();
         $appt = $repo->find($id);
 
-        if ($appt && $appt->getOrganization() === $user->getOrganization()
+        if ($appt && $appt->getOrganization() === $org
             && $appt->getStatus() !== Appointment::STATUS_CANCELLED) {
+
+            // Optionally assign an employee if none was set and the owner picked one
+            $empId = (int) $request->request->get('employee_id', 0);
+            if ($empId && $appt->getEmployee() === null) {
+                $emp = $empRepo->find($empId);
+                if ($emp && $emp->getOrganization() === $org && $emp->isActive()) {
+                    $appt->setEmployee($emp);
+                }
+            }
+
             $note = trim($request->request->get('cancellation_note', ''));
             $appt->setStatus(Appointment::STATUS_CANCELLED)
                  ->setCancellationNote($note ?: null);

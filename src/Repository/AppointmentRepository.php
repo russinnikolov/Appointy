@@ -164,6 +164,46 @@ class AppointmentRepository extends ServiceEntityRepository
         return array_values(array_unique($slots));
     }
 
+    /**
+     * Number of CONFIRMED appointments that start at exactly this date+time for the org.
+     */
+    public function countConfirmedAtSlot(Organization $org, \DateTimeInterface $date, \DateTimeInterface $time): int
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->andWhere('a.organization = :org')
+            ->andWhere('a.appointmentDate = :date')
+            ->andWhere('a.appointmentTime = :time')
+            ->andWhere('a.status = :confirmed')
+            ->setParameter('org', $org)
+            ->setParameter('date', $date->format('Y-m-d'))
+            ->setParameter('time', $time->format('H:i:s'))
+            ->setParameter('confirmed', Appointment::STATUS_CONFIRMED)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * All PENDING appointments at exactly this date+time for the org, excluding one ID.
+     * @return Appointment[]
+     */
+    public function findPendingAtSlot(Organization $org, \DateTimeInterface $date, \DateTimeInterface $time, int $excludeId): array
+    {
+        return $this->createQueryBuilder('a')
+            ->andWhere('a.organization = :org')
+            ->andWhere('a.appointmentDate = :date')
+            ->andWhere('a.appointmentTime = :time')
+            ->andWhere('a.status = :pending')
+            ->andWhere('a.id != :id')
+            ->setParameter('org', $org)
+            ->setParameter('date', $date->format('Y-m-d'))
+            ->setParameter('time', $time->format('H:i:s'))
+            ->setParameter('pending', Appointment::STATUS_PENDING)
+            ->setParameter('id', $excludeId)
+            ->getQuery()
+            ->getResult();
+    }
+
     /** @return array{pending: int, confirmed: int, cancelled: int} */
     public function countByStatus(Organization $org): array
     {

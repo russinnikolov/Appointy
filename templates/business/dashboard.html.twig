@@ -219,10 +219,13 @@
 </div>
 
 <form method="post" id="confirmForm" style="display:none">
-    <input type="hidden" name="_confirm" value="1">
+    <input type="hidden" name="_confirm"    value="1">
+    <input type="hidden" name="force"       id="confirmForce"      value="0">
+    <input type="hidden" name="employee_id" id="confirmEmployeeId" value="">
 </form>
 <form method="post" id="cancelForm" style="display:none">
     <input type="hidden" name="cancellation_note" id="cancelNote">
+    <input type="hidden" name="employee_id"       id="cancelEmployeeId" value="">
 </form>
 {% endblock %}
 
@@ -238,10 +241,12 @@
     'cal.month.9'|trans, 'cal.month.10'|trans, 'cal.month.11'|trans
 ] %}
 <script>
-const appointments  = {{ appointments_json|raw }};
+const appointments   = {{ appointments_json|raw }};
 const blockedPeriods = {{ blocked_json|raw }};
-const workingHours  = {{ organization.workingHours|json_encode|raw }};
-const timeStep      = {{ organization.timeStep }};
+const workingHours   = {{ organization.workingHours|json_encode|raw }};
+const timeStep       = {{ organization.timeStep }};
+const orgCapacity    = {{ org_capacity }};
+const orgEmployees   = {{ org_employees_json|raw }};
 
 const confirmUrl  = id => `{{ path('business_confirm',    {id: '__ID__'}) }}`.replace('__ID__', id);
 const cancelUrl   = id => `{{ path('business_cancel',     {id: '__ID__'}) }}`.replace('__ID__', id);
@@ -281,6 +286,12 @@ const T = {
     conflictTitle:        {{ 'appt.conflict_title'|trans|json_encode|raw }},
     conflictText:         {{ 'appt.conflict_text'|trans|json_encode|raw }},
     conflictConfirm:      {{ 'appt.conflict_confirm'|trans|json_encode|raw }},
+    capacityTitle:        {{ 'appt.capacity_title'|trans|json_encode|raw }},
+    capacityText:         {{ 'appt.capacity_text'|trans|json_encode|raw }},
+    capacityAccept:       {{ 'appt.capacity_accept'|trans|json_encode|raw }},
+    capacityDecline:      {{ 'appt.capacity_decline'|trans|json_encode|raw }},
+    anyEmployee:          {{ 'book.any_employee'|trans|json_encode|raw }},
+    assignEmployee:       {{ 'appt.assign_employee'|trans|json_encode|raw }},
 };
 let collapseEmpty = false;
 
@@ -465,11 +476,26 @@ function openModal(id) {
             ${msgIcons ? `<span class="d-flex gap-2 ms-1">${msgIcons}</span>` : ''}
         </div>`;
     }
+    // ── Employee row — always visible ─────────────────────────────
+    body += `<div class="d-flex align-items-center gap-2">
+        <i class="bi bi-person-badge text-muted flex-shrink-0"></i>`;
     if (a.employee_name) {
-        body += `<div><i class="bi bi-person-badge me-2 text-muted"></i>${a.employee_name}`;
+        body += `<span><strong>${a.employee_name}</strong>`;
         if (a.employee_role) body += ` <span class="text-muted">(${a.employee_role})</span>`;
-        body += `</div>`;
+        body += `</span>`;
+    } else if (a.status !== 'cancelled' && orgEmployees.length > 0) {
+        // No employee assigned and appointment is still actionable — show selector
+        const opts = orgEmployees.map(e =>
+            `<option value="${e.id}">${e.name}${e.role ? ' — ' + e.role : ''}</option>`
+        ).join('');
+        body += `<select id="modalEmployeeSelect" class="form-select form-select-sm flex-grow-1" style="max-width:220px">
+            <option value="">${T.anyEmployee}</option>
+            ${opts}
+        </select>`;
+    } else {
+        body += `<span class="text-muted fst-italic">${T.anyEmployee}</span>`;
     }
+    body += `</div>`;
     if (a.notes) body += `<div><i class="bi bi-chat-left-text me-2 text-muted"></i>${a.notes}</div>`;
     body += `<div><i class="bi bi-circle-fill me-2" style="color:var(--bs-${statusClass[a.status]});font-size:.5rem;vertical-align:middle"></i>
         <span class="badge bg-${statusClass[a.status]}-subtle text-${statusClass[a.status]}-emphasis border border-${statusClass[a.status]}-subtle">${statusLabel[a.status]}</span></div>`;
@@ -542,13 +568,71 @@ function googleCalUrl(a) {
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${startDt}/${endDt}&details=${details}`;
 }
 
-function doConfirm(id) {
+async function doConfirm(id) {
+    const a = appointments.find(x => x.id === id);
+    if (!a) return;
+
+    // Capture employee selection NOW — the modal may be hidden before we submit
+    const selectedEmpId = document.getElementById('modalEmployeeSelect')?.value || '';
+
+    // Count how many confirmed bookings already exist at this exact date+time
+    const confirmedCount = appointments.filter(x =>
+        x.date === a.date && x.time === a.time && x.status === 'confirmed'
+    ).length;
+
+    // Other PENDING bookings at the same slot that would be cancelled
+    const pendingOthers = appointments.filter(x =>
+        x.date === a.date && x.time === a.time && x.id !== a.id && x.status === 'pending'
+    );
+
+    // This confirmation would fill the last slot AND there are others to cancel
+    const isLastSlot = orgCapacity > 0 && confirmedCount + 1 >= orgCapacity;
+
+    if (isLastSlot && pendingOthers.length > 0) {
+        // Hide the appointment modal first so SweetAlert is clearly visible
+        bootstrap.Modal.getInstance(document.getElementById('apptModal'))?.hide();
+
+        const listItems = pendingOthers
+            .map(o => `<li class="text-start">${o.booker_name} &mdash; ${o.date} ${o.time}</li>`)
+            .join('');
+
+        const result = await Swal.fire({
+            title: T.capacityTitle,
+            html: `<p class="text-muted small mb-2">${T.capacityText}</p>
+                   <ul class="small mb-0 ps-3">${listItems}</ul>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: T.capacityAccept,
+            confirmButtonColor: '#10b981',
+            cancelButtonText:  T.capacityDecline,
+            cancelButtonColor: '#6b7280',
+            reverseButtons: true,
+            focusCancel: true,
+        });
+
+        if (!result.isConfirmed) {
+            // User declined — re-open the appointment detail modal
+            openModal(id);
+            return;
+        }
+
+        // User accepted — submit with force flag so backend also cancels the others
+        document.getElementById('confirmForce').value = '1';
+    } else {
+        document.getElementById('confirmForce').value = '0';
+    }
+
+    document.getElementById('confirmEmployeeId').value = selectedEmpId;
+
     const form = document.getElementById('confirmForm');
     form.action = confirmUrl(id);
     form.submit();
 }
 
 async function doCancel(id, name, confirmed) {
+    // Read employee selection BEFORE hiding the modal (it vanishes when modal closes)
+    const selectedEmpId = document.getElementById('modalEmployeeSelect')?.value || '';
+
     bootstrap.Modal.getInstance(document.getElementById('apptModal'))?.hide();
     const result = await Swal.fire({
         title: T.cancelTitle,
@@ -567,7 +651,8 @@ async function doCancel(id, name, confirmed) {
     if (result.isConfirmed) {
         const form = document.getElementById('cancelForm');
         form.action = cancelUrl(id);
-        document.getElementById('cancelNote').value = result.value || '';
+        document.getElementById('cancelNote').value       = result.value || '';
+        document.getElementById('cancelEmployeeId').value = selectedEmpId;
         form.submit();
     }
 }

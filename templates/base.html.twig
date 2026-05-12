@@ -103,11 +103,6 @@
                     </li>
                 {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ path('public_organizations') }}">
-                            <i class="bi bi-building me-1"></i>{{ 'nav.browse'|trans }}
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" href="{{ path('contact') }}">
                             <i class="bi bi-envelope me-1"></i>{{ 'nav.contact'|trans }}
                         </a>
@@ -115,11 +110,6 @@
                     <li class="nav-item">
                         <a class="btn btn-outline-primary btn-sm" href="{{ path('login') }}">
                             <i class="bi bi-person me-1"></i>{{ 'nav.login'|trans }}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="btn btn-primary btn-sm" href="{{ path('register') }}">
-                            <i class="bi bi-person-plus me-1"></i>{{ 'nav.register'|trans }}
                         </a>
                     </li>
                 {% endif %}
