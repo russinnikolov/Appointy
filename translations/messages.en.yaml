@@ -119,6 +119,7 @@ org.employees_count: 'employee(s)'
 org.our_team: 'Our Team'
 org.no_employees_public: 'No employees listed yet.'
 org.book_with: 'Book with %name%'
+org.view_profile: 'View Profile'
 
 # ── Public browse ──
 public.orgs.title: 'Browse Organizations'

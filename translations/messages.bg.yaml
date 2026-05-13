@@ -119,6 +119,7 @@ org.employees_count: 'служит.'
 org.our_team: 'Нашият Екип'
 org.no_employees_public: 'Все още няма добавени служители.'
 org.book_with: 'Запиши при %name%'
+org.view_profile: 'Виж Профила'
 
 # ── Public browse ──
 public.orgs.title: 'Разгледай Организации'
