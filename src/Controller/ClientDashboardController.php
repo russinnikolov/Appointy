@@ -164,10 +164,18 @@ class ClientDashboardController extends AbstractController
                  ->setAppointmentTime($apptTime)
                  ->setNotes($notes ?: null);
 
+            // Auto-confirm if this client is on the org's trusted list
+            if ($org->isTrustedClient($user)) {
+                $appt->setStatus(Appointment::STATUS_CONFIRMED);
+            }
+
             $em->persist($appt);
             $em->flush();
 
-            $this->addFlash('success', $t->trans('flash.appointment_booked'));
+            $flashKey = $org->isTrustedClient($user)
+                ? 'flash.appointment_confirmed'
+                : 'flash.appointment_booked';
+            $this->addFlash('success', $t->trans($flashKey));
             return $this->redirectToRoute('client_dashboard');
         }
 

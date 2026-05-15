@@ -204,6 +204,42 @@ class AppointmentRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Returns distinct clients (User) who have at least one booking with the org,
+     * sorted by their name alphabetically.
+     *
+     * @return User[]
+     */
+    public function findDistinctClientsByOrg(Organization $org): array
+    {
+        // Step 1 — collect distinct client IDs as scalars (root entity = Appointment, safe)
+        $rows = $this->createQueryBuilder('a')
+            ->select('IDENTITY(a.client) AS clientId')
+            ->andWhere('a.organization = :org')
+            ->andWhere('a.client IS NOT NULL')
+            ->setParameter('org', $org)
+            ->distinct()
+            ->getQuery()
+            ->getScalarResult();
+
+        $ids = array_values(array_unique(array_column($rows, 'clientId')));
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        // Step 2 — load User entities with User as the root alias (no DQL restriction)
+        return $this->getEntityManager()
+            ->createQueryBuilder()
+            ->select('u')
+            ->from(User::class, 'u')
+            ->andWhere('u.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('u.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     /** @return array{pending: int, confirmed: int, cancelled: int} */
     public function countByStatus(Organization $org): array
     {

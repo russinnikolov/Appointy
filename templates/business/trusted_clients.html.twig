@@ -1,0 +1,139 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'trusted.title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ path('business_dashboard') }}" class="btn btn-link text-muted ps-0">
+        <i class="bi bi-arrow-left me-1"></i>{{ 'nav.dashboard'|trans }}
+    </a>
+    <div>
+        <h5 class="fw-bold mb-0"><i class="bi bi-patch-check me-2 text-primary"></i>{{ 'trusted.title'|trans }}</h5>
+        <p class="text-muted small mb-0">{{ 'trusted.subtitle'|trans }}</p>
+    </div>
+</div>
+
+{# Info banner #}
+<div class="alert alert-primary d-flex gap-3 align-items-start py-3 mb-4">
+    <i class="bi bi-info-circle-fill fs-5 flex-shrink-0 mt-1"></i>
+    <div class="small">
+        <strong>{{ 'trusted.info_title'|trans }}</strong><br>
+        {{ 'trusted.info_text'|trans }}
+    </div>
+</div>
+
+{% if clients is empty %}
+    <div class="card p-5 text-center">
+        <div style="font-size:3rem;color:#d1d5db"><i class="bi bi-people"></i></div>
+        <h5 class="fw-semibold mt-3 mb-1">{{ 'trusted.empty_title'|trans }}</h5>
+        <p class="text-muted small mb-0">{{ 'trusted.empty_text'|trans }}</p>
+    </div>
+{% else %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ 'common.name'|trans }}</th>
+                        <th>{{ 'common.email'|trans }}</th>
+                        <th class="text-center">{{ 'trusted.bookings'|trans }}</th>
+                        <th class="text-center">{{ 'trusted.status'|trans }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for client in clients %}
+                    {% set isTrusted = organization.isTrustedClient(client) %}
+                    <tr id="client-row-{{ client.id }}">
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                {% if client.avatarFilename %}
+                                    <img src="/uploads/avatars/{{ client.avatarFilename }}"
+                                         class="rounded-circle flex-shrink-0"
+                                         style="width:36px;height:36px;object-fit:cover;border:1px solid #e5e7eb">
+                                {% else %}
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                         style="width:36px;height:36px;background:#ede9fe;color:#6366f1;font-size:1rem">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                {% endif %}
+                                <span class="fw-semibold">{{ client.name }}</span>
+                            </div>
+                        </td>
+                        <td class="text-muted small">
+                            <a href="mailto:{{ client.email }}" class="text-muted text-decoration-none link-hover">{{ client.email }}</a>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-secondary border">{{ booking_counts[client.id] ?? 0 }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="trusted-badge-{{ client.id }}">
+                                {% if isTrusted %}
+                                    <span class="badge rounded-pill" style="background:#d1fae5;color:#065f46">
+                                        <i class="bi bi-patch-check-fill me-1"></i>{{ 'trusted.badge_trusted'|trans }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-light text-secondary border">
+                                        {{ 'trusted.badge_standard'|trans }}
+                                    </span>
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm {{ isTrusted ? 'btn-outline-danger' : 'btn-outline-success' }} trusted-toggle"
+                                    data-client-id="{{ client.id }}"
+                                    data-toggle-url="{{ path('business_trusted_client_toggle', {id: client.id}) }}"
+                                    data-is-trusted="{{ isTrusted ? '1' : '0' }}">
+                                <i class="bi bi-{{ isTrusted ? 'x-circle' : 'patch-check' }} me-1"></i>
+                                {{ isTrusted ? 'trusted.btn_remove'|trans : 'trusted.btn_add'|trans }}
+                            </button>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LABEL_TRUSTED  = {{ 'trusted.badge_trusted'|trans|json_encode|raw }};
+const LABEL_STANDARD = {{ 'trusted.badge_standard'|trans|json_encode|raw }};
+const LABEL_ADD      = {{ 'trusted.btn_add'|trans|json_encode|raw }};
+const LABEL_REMOVE   = {{ 'trusted.btn_remove'|trans|json_encode|raw }};
+
+document.querySelectorAll('.trusted-toggle').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id  = btn.dataset.clientId;
+        const url = btn.dataset.toggleUrl;
+        btn.disabled = true;
+
+        try {
+            const res  = await fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const data = await res.json();
+
+            const isTrusted = data.trusted;
+            btn.dataset.isTrusted = isTrusted ? '1' : '0';
+
+            // Update button
+            btn.className = `btn btn-sm ${isTrusted ? 'btn-outline-danger' : 'btn-outline-success'} trusted-toggle`;
+            btn.innerHTML = `<i class="bi bi-${isTrusted ? 'x-circle' : 'patch-check'} me-1"></i>${isTrusted ? LABEL_REMOVE : LABEL_ADD}`;
+
+            // Update status badge
+            const badgeWrap = document.querySelector(`.trusted-badge-${id}`);
+            if (isTrusted) {
+                badgeWrap.innerHTML = `<span class="badge rounded-pill" style="background:#d1fae5;color:#065f46">
+                    <i class="bi bi-patch-check-fill me-1"></i>${LABEL_TRUSTED}</span>`;
+            } else {
+                badgeWrap.innerHTML = `<span class="badge rounded-pill bg-light text-secondary border">${LABEL_STANDARD}</span>`;
+            }
+        } catch(e) {
+            console.error(e);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %}

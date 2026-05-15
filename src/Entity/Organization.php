@@ -95,6 +95,11 @@ class Organization
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: \App\Entity\Service::class, orphanRemoval: true)]
     private Collection $services;
 
+    /** Clients whose bookings are auto-confirmed for this org. */
+    #[ORM\ManyToMany(targetEntity: User::class)]
+    #[ORM\JoinTable(name: 'org_trusted_client')]
+    private Collection $trustedClients;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -109,8 +114,9 @@ class Organization
         $this->appointments   = new ArrayCollection();
         $this->blockedPeriods = new ArrayCollection();
         $this->services       = new ArrayCollection();
-        $this->createdAt    = new \DateTimeImmutable();
-        $this->updatedAt    = new \DateTimeImmutable();
+        $this->trustedClients = new ArrayCollection();
+        $this->createdAt      = new \DateTimeImmutable();
+        $this->updatedAt      = new \DateTimeImmutable();
     }
 
     public static function defaultWorkingHours(): array
@@ -252,4 +258,26 @@ class Organization
 
     /** @return Collection<int, \App\Entity\Service> */
     public function getServices(): Collection { return $this->services; }
+
+    /** @return Collection<int, User> */
+    public function getTrustedClients(): Collection { return $this->trustedClients; }
+
+    public function addTrustedClient(User $user): static
+    {
+        if (!$this->trustedClients->contains($user)) {
+            $this->trustedClients->add($user);
+        }
+        return $this;
+    }
+
+    public function removeTrustedClient(User $user): static
+    {
+        $this->trustedClients->removeElement($user);
+        return $this;
+    }
+
+    public function isTrustedClient(User $user): bool
+    {
+        return $this->trustedClients->contains($user);
+    }
 }

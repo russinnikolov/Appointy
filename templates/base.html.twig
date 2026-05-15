@@ -52,8 +52,8 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('business_blocked_times') }}">
-                                <i class="bi bi-slash-circle me-1"></i>{{ 'nav.blocked_times'|trans }}
+                            <a class="nav-link" href="{{ path('business_trusted_clients') }}">
+                                <i class="bi bi-patch-check me-1"></i>{{ 'nav.trusted_clients'|trans }}
                             </a>
                         </li>
                     {% elseif is_granted('ROLE_EMPLOYEE') %}
