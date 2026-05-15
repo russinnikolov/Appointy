@@ -16,13 +16,24 @@
 <div class="row g-4">
     <div class="col-lg-7">
         <div class="card p-4">
-            <form method="post" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate>
                 {% for msg in app.flashes('success') %}
                     <div class="alert alert-success py-2 small mb-3"><i class="bi bi-check-circle me-1"></i>{{ msg }}</div>
                 {% endfor %}
                 {% if error %}
                     <div class="alert alert-danger py-2 small mb-3"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
                 {% endif %}
+
+                {# ── Identity ── #}
+                <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'settings.info.identity_section'|trans }}</p>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">{{ 'common.name'|trans }} <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required
+                           value="{{ organization.name }}" placeholder="{{ 'placeholder.org_name'|trans }}">
+                </div>
+
+                <hr class="my-4">
                 <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'settings.info.contact_section'|trans }}</p>
 
                 <div class="row g-3 mb-3">

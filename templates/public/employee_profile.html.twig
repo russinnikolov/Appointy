@@ -1,0 +1,137 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ employee.name }} — {{ organization|localized('name') }} — Grafira{% endblock %}
+
+{% block body %}
+<a href="{{ path('public_organization', {id: organization.id}) }}"
+   class="btn btn-link text-muted ps-0 mb-3 small">
+    <i class="bi bi-arrow-left me-1"></i>{{ organization|localized('name') }}
+</a>
+
+<div class="row g-4">
+    {# Left column — employee card #}
+    <div class="col-lg-4">
+        <div class="card p-4 text-center">
+            {% set empAvatar = employee.avatarFilename ?? (employee.user ? employee.user.avatarFilename : null) %}
+            {% if empAvatar %}
+                <img src="/uploads/avatars/{{ empAvatar }}"
+                     alt="{{ employee.name }}"
+                     class="rounded-circle mx-auto mb-3"
+                     style="width:96px;height:96px;object-fit:cover;border:2px solid #e5e7eb">
+            {% else %}
+                <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                     style="width:96px;height:96px;background:#ede9fe;color:#6366f1;font-size:2.5rem">
+                    <i class="bi bi-person"></i>
+                </div>
+            {% endif %}
+
+            <h4 class="fw-bold mb-1">{{ employee.name }}</h4>
+            {% if employee.role %}
+                <p class="text-muted small mb-2">{{ employee.role }}</p>
+            {% endif %}
+
+            <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                <span class="badge bg-light text-secondary border">
+                    <i class="bi bi-building me-1"></i>{{ organization|localized('name') }}
+                </span>
+            </div>
+
+            {% if employee.phone %}
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-telephone me-1"></i>
+                    <a href="tel:{{ employee.phone }}" class="text-muted text-decoration-none link-hover">{{ employee.phone }}</a>
+                </p>
+            {% endif %}
+
+            {# Book CTA #}
+            {% if is_granted('ROLE_CLIENT') %}
+                <a href="{{ path('client_book', {id: organization.id}) }}"
+                   class="btn btn-primary w-100">
+                    <i class="bi bi-calendar-plus me-1"></i>{{ 'org.book'|trans }}
+                </a>
+            {% else %}
+                <a href="{{ path('public_book', {orgId: organization.id, employeeId: employee.id}) }}"
+                   class="btn btn-primary w-100">
+                    <i class="bi bi-calendar-plus me-1"></i>{{ 'org.book'|trans }}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Right column — bio + portfolio #}
+    <div class="col-lg-8">
+        {% if employee.bio %}
+            <div class="card p-4 mb-4">
+                <h5 class="fw-semibold mb-3"><i class="bi bi-person-lines-fill me-2"></i>{{ 'emp.about'|trans }}</h5>
+                <p class="text-muted mb-0" style="white-space:pre-line">{{ employee.bio }}</p>
+            </div>
+        {% endif %}
+
+        {% if employee.portfolioPhotos %}
+            <div class="card p-4">
+                <h5 class="fw-semibold mb-3"><i class="bi bi-images me-2"></i>{{ 'emp.portfolio'|trans }}</h5>
+                <div class="row g-2">
+                    {% for photo in employee.portfolioPhotos %}
+                        <div class="col-6 col-sm-4 col-md-3">
+                            <img src="/uploads/portfolio/{{ photo }}"
+                                 alt=""
+                                 class="img-fluid rounded"
+                                 style="width:100%;aspect-ratio:1/1;object-fit:cover;cursor:pointer"
+                                 onclick='openGallery({{ loop.index0 }}, {{ employee.portfolioPhotos|json_encode|raw }})'>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if not employee.bio and not employee.portfolioPhotos %}
+            <div class="card p-4 text-center text-muted">
+                <i class="bi bi-person" style="font-size:2rem"></i>
+                <p class="mt-2 mb-0 small">{{ 'emp.no_info'|trans }}</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{# Lightbox modal #}
+<div class="modal fade" id="galleryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark border-0">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-2">
+                <img id="galleryImg" src="" alt=""
+                     style="max-height:70vh;max-width:100%;border-radius:8px;object-fit:contain">
+            </div>
+            <div class="modal-footer border-0 justify-content-center pt-0 pb-3 gap-2" id="galleryThumbs"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _photos = [], _idx = 0;
+function openGallery(startIdx, photos) {
+    _photos = photos;
+    _idx    = startIdx;
+    renderGallery();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('galleryModal')).show();
+}
+function renderGallery() {
+    document.getElementById('galleryImg').src = '/uploads/portfolio/' + _photos[_idx];
+    const thumbs = document.getElementById('galleryThumbs');
+    thumbs.innerHTML = _photos.map((p, i) =>
+        `<img src="/uploads/portfolio/${p}" onclick="setGalleryIdx(${i})"
+              style="width:50px;height:50px;object-fit:cover;border-radius:6px;cursor:pointer;
+                     opacity:${i===_idx?1:.5};border:2px solid ${i===_idx?'#6366f1':'transparent'}">`
+    ).join('');
+}
+function setGalleryIdx(i) { _idx = i; renderGallery(); }
+document.addEventListener('keydown', e => {
+    if (!document.getElementById('galleryModal').classList.contains('show')) return;
+    if (e.key === 'ArrowRight') setGalleryIdx((_idx + 1) % _photos.length);
+    if (e.key === 'ArrowLeft')  setGalleryIdx((_idx - 1 + _photos.length) % _photos.length);
+});
+</script>
+{% endblock %}

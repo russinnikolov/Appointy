@@ -16,10 +16,16 @@
 
         <div class="card p-4 p-md-5">
             <div class="d-flex align-items-center gap-3 mb-4">
-                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                     style="width:52px;height:52px;background:#ede9fe;color:#6366f1;font-size:1.4rem">
-                    <i class="bi bi-person-circle"></i>
-                </div>
+                {% if employee.avatarFilename %}
+                    <img src="/uploads/avatars/{{ employee.avatarFilename }}"
+                         class="rounded-circle flex-shrink-0"
+                         style="width:52px;height:52px;object-fit:cover;border:2px solid #ede9fe">
+                {% else %}
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:52px;height:52px;background:#ede9fe;color:#6366f1;font-size:1.4rem">
+                        <i class="bi bi-person-circle"></i>
+                    </div>
+                {% endif %}
                 <div>
                     <h5 class="fw-bold mb-0">{{ employee.name }}</h5>
                     <p class="text-muted small mb-0">
@@ -44,11 +50,12 @@
             <form method="post" enctype="multipart/form-data" novalidate>
 
                 {# ── Avatar ── #}
+                {% set currentAvatar = employee.avatarFilename ?? app.user.avatarFilename %}
                 <div class="d-flex align-items-center gap-4 mb-4 pb-4 border-bottom">
                     <div id="avatarPreview" class="rounded-circle overflow-hidden flex-shrink-0"
                          style="width:72px;height:72px;background:#ede9fe;display:flex;align-items:center;justify-content:center;">
-                        {% if app.user.avatarFilename %}
-                            <img src="/uploads/avatars/{{ app.user.avatarFilename }}"
+                        {% if currentAvatar %}
+                            <img src="/uploads/avatars/{{ currentAvatar }}"
                                  class="w-100 h-100" style="object-fit:cover;">
                         {% else %}
                             <i class="bi bi-person-fill text-primary" style="font-size:2rem;" id="avatarIcon"></i>

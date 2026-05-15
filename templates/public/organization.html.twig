@@ -27,20 +27,42 @@
                 {% endif %}
             </div>
             {% if organization.address %}
-                <p class="text-muted small mb-1"><i class="bi bi-geo-alt me-1"></i>{{ organization.address }}</p>
+                {% set mapsQuery = organization.latitude and organization.longitude
+                    ? organization.latitude ~ ',' ~ organization.longitude
+                    : organization.address %}
+                <p class="text-muted small mb-1">
+                    <i class="bi bi-geo-alt me-1"></i>
+                    <a href="https://www.google.com/maps/search/?api=1&query={{ mapsQuery|url_encode }}"
+                       target="_blank" rel="noopener" class="text-muted text-decoration-none link-hover">{{ organization.address }}</a>
+                </p>
             {% endif %}
             {% if organization.phone %}
-                <p class="text-muted small mb-1"><i class="bi bi-telephone me-1"></i>{{ organization.phone }}</p>
+                <p class="text-muted small mb-1">
+                    <i class="bi bi-telephone me-1"></i>
+                    <a href="tel:{{ organization.phone }}" class="text-muted text-decoration-none link-hover">{{ organization.phone }}</a>
+                </p>
             {% endif %}
             {% if organization.email %}
-                <p class="text-muted small mb-1"><i class="bi bi-envelope me-1"></i>{{ organization.email }}</p>
+                <p class="text-muted small mb-1">
+                    <i class="bi bi-envelope me-1"></i>
+                    <a href="mailto:{{ organization.email }}" class="text-muted text-decoration-none link-hover">{{ organization.email }}</a>
+                </p>
             {% endif %}
             {% if organization.description %}
                 <p class="text-muted small mb-0 mt-2">{{ organization|localized('description') }}</p>
             {% endif %}
         </div>
-        <div class="flex-shrink-0 align-self-center">
+        <div class="flex-shrink-0 align-self-center d-flex align-items-center gap-2">
             {% if is_granted('ROLE_CLIENT') %}
+                {% set isFav = app.user.isFavouriteOrganization(organization) %}
+                <button id="favBtn"
+                        class="btn btn-outline-secondary"
+                        data-org-id="{{ organization.id }}"
+                        data-toggle-url="{{ path('client_favourite_toggle', {id: organization.id}) }}"
+                        title="{{ isFav ? 'fav.remove'|trans : 'fav.add'|trans }}">
+                    <i class="bi bi-star{{ isFav ? '-fill' : '' }}"
+                       style="font-size:1.1rem;{{ isFav ? 'color:#f59e0b' : '' }}"></i>
+                </button>
                 <a href="{{ path('client_book', {id: organization.id}) }}"
                    class="btn btn-primary">
                     <i class="bi bi-calendar-plus me-1"></i>{{ 'org.book'|trans }}
@@ -69,8 +91,9 @@
             <div class="col-sm-6 col-lg-4">
                 <div class="card p-3 h-100">
                     <div class="d-flex align-items-center gap-3 mb-2">
-                        {% if emp.user and emp.user.avatarFilename %}
-                            <img src="/uploads/avatars/{{ emp.user.avatarFilename }}" alt="{{ emp.name }}"
+                        {% set empAvatar = emp.avatarFilename ?? (emp.user ? emp.user.avatarFilename : null) %}
+                        {% if empAvatar %}
+                            <img src="/uploads/avatars/{{ empAvatar }}" alt="{{ emp.name }}"
                                  class="rounded-circle flex-shrink-0"
                                  style="width:44px;height:44px;object-fit:cover;border:1px solid #e5e7eb">
                         {% else %}
@@ -104,10 +127,11 @@
                     {% endif %}
                     {% if emp.phone %}
                         <p class="text-muted small mb-2">
-                            <i class="bi bi-telephone me-1"></i>{{ emp.phone }}
+                            <i class="bi bi-telephone me-1"></i>
+                            <a href="tel:{{ emp.phone }}" class="text-muted text-decoration-none link-hover">{{ emp.phone }}</a>
                         </p>
                     {% endif %}
-                    <a href="{{ path('public_book', {orgId: organization.id, employeeId: emp.id}) }}"
+                    <a href="{{ path('public_employee_profile', {orgId: organization.id, employeeId: emp.id}) }}"
                        class="btn btn-outline-secondary btn-sm w-100 mt-auto">
                         <i class="bi bi-person-lines-fill me-1"></i>{{ 'org.view_profile'|trans }}
                     </a>
@@ -134,6 +158,32 @@
 {% endblock %}
 
 {% block scripts %}
+{% if is_granted('ROLE_CLIENT') %}
+<script>
+(function () {
+    const btn  = document.getElementById('favBtn');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+        try {
+            const res  = await fetch(btn.dataset.toggleUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const data = await res.json();
+            const icon = btn.querySelector('i');
+            if (data.favourited) {
+                icon.className    = 'bi bi-star-fill';
+                icon.style.color  = '#f59e0b';
+                icon.style.fontSize = '1.1rem';
+                btn.title         = {{ 'fav.remove'|trans|json_encode|raw }};
+            } else {
+                icon.className    = 'bi bi-star';
+                icon.style.color  = '';
+                icon.style.fontSize = '1.1rem';
+                btn.title         = {{ 'fav.add'|trans|json_encode|raw }};
+            }
+        } catch(e) { console.error(e); }
+    });
+})();
+</script>
+{% endif %}
 <script>
 let _photos = [], _idx = 0;
 function openGallery(startIdx, photos) {

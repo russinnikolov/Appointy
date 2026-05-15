@@ -33,6 +33,9 @@ class Employee
     #[ORM\Column(length: 180, nullable: true)]
     private ?string $email = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $avatarFilename = null;
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $bio = null;
 
@@ -96,6 +99,9 @@ class Employee
 
     public function getEmail(): ?string { return $this->email; }
     public function setEmail(?string $v): static { $this->email = $v; return $this; }
+
+    public function getAvatarFilename(): ?string { return $this->avatarFilename; }
+    public function setAvatarFilename(?string $v): static { $this->avatarFilename = $v; return $this; }
 
     public function getBio(): ?string { return $this->bio; }
     public function setBio(?string $v): static { $this->bio = $v; return $this; }

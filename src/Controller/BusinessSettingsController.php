@@ -70,11 +70,15 @@ class BusinessSettingsController extends AbstractController
 
         $error = null;
         if ($request->isMethod('POST')) {
+            $name  = trim($request->request->get('name', ''));
             $phone = trim($request->request->get('phone', ''));
-            if ($phone && !PhoneValidator::isValid($phone)) {
+            if (!$name) {
+                $error = $t->trans('flash.name_required');
+            } elseif ($phone && !PhoneValidator::isValid($phone)) {
                 $error = 'Please enter a valid phone number.';
             } else {
-            $org->setAddress(trim($request->request->get('address', '')) ?: null)
+            $org->setName($name)
+                ->setAddress(trim($request->request->get('address', '')) ?: null)
                 ->setCity(trim($request->request->get('city', '')) ?: null)
                 ->setCountry(trim($request->request->get('country', '')) ?: null)
                 ->setZipCode(trim($request->request->get('zip_code', '')) ?: null)

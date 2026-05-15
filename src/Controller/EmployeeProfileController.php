@@ -90,11 +90,14 @@ class EmployeeProfileController extends AbstractController
                 if ($avatarFile && $avatarFile->isValid()) {
                     $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars/';
                     $ext        = $avatarFile->getClientOriginalExtension() ?: 'jpg';
-                    $filename   = 'user-' . $user->getId() . '-' . uniqid() . '.' . $ext;
-                    if ($user->getAvatarFilename()) {
-                        @unlink($uploadsDir . $user->getAvatarFilename());
+                    $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
+                    // Delete old employee avatar if it differs from user avatar
+                    if ($employee->getAvatarFilename() && $employee->getAvatarFilename() !== $user->getAvatarFilename()) {
+                        @unlink($uploadsDir . $employee->getAvatarFilename());
                     }
                     $avatarFile->move($uploadsDir, $filename);
+                    $employee->setAvatarFilename($filename);
+                    // Keep navbar in sync
                     $user->setAvatarFilename($filename);
                 }
 

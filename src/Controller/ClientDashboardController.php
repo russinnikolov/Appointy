@@ -52,15 +52,23 @@ class ClientDashboardController extends AbstractController
     #[Route('/organizations', name: 'client_organizations')]
     public function organizations(Request $request, OrganizationRepository $repo): Response
     {
+        /** @var User $user */
+        $user   = $this->getUser();
         $search = trim($request->query->get('q', ''));
 
         $organizations = $search
             ? $repo->search($search)
             : $repo->findBy([], ['name' => 'ASC']);
 
+        $favouriteIds = array_map(
+            fn($o) => $o->getId(),
+            $user->getFavouriteOrganizations()->toArray()
+        );
+
         return $this->render('client/organizations.html.twig', [
             'organizations' => $organizations,
             'search'        => $search,
+            'favourite_ids' => $favouriteIds,
         ]);
     }
 

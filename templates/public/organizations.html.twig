@@ -8,6 +8,10 @@
     .org-card { transition: .15s; cursor: pointer; }
     .org-card:hover { box-shadow: 0 4px 20px rgba(99,102,241,.15) !important; }
     .org-card.highlighted { box-shadow: 0 0 0 2px #6366f1, 0 4px 20px rgba(99,102,241,.2) !important; }
+    .fav-btn { line-height:1; background:none; border:none; padding:0; cursor:pointer; }
+    .fav-btn .bi-star      { color:#9ca3af; }
+    .fav-btn .bi-star-fill { color:#f59e0b; }
+    .fav-btn:hover .bi-star { color:#f59e0b; }
 </style>
 {% endblock %}
 
@@ -45,9 +49,19 @@
 {% else %}
     <div class="row g-3" id="orgList">
         {% for org in organizations %}
+            {% set isFav = is_granted('ROLE_CLIENT') and app.user.isFavouriteOrganization(org) %}
             <div class="col-md-6 col-lg-4 org-item" id="org-{{ org.id }}">
                 <a href="{{ path('public_organization', {id: org.id}) }}" class="text-decoration-none">
-                    <div class="card h-100 p-3 org-card">
+                    <div class="card h-100 p-3 org-card position-relative">
+                        {% if is_granted('ROLE_CLIENT') %}
+                            <button class="fav-btn position-absolute top-0 end-0 m-2"
+                                    data-org-id="{{ org.id }}"
+                                    data-toggle-url="{{ path('client_favourite_toggle', {id: org.id}) }}"
+                                    title="{{ isFav ? 'fav.remove'|trans : 'fav.add'|trans }}"
+                                    onclick="event.preventDefault();event.stopPropagation()">
+                                <i class="bi bi-star{{ isFav ? '-fill' : '' }}" style="font-size:1.2rem"></i>
+                            </button>
+                        {% endif %}
                         <div class="d-flex align-items-start justify-content-between mb-2">
                             {% if org.logoFilename %}
                                 <img src="/uploads/logos/{{ org.logoFilename }}" alt="{{ org.name }}"
@@ -64,13 +78,15 @@
                             {% endif %}
                         </div>
                         <h6 class="fw-bold mb-1 text-dark">{{ org|localized('name') }}</h6>
-                        {% if org.fullAddress %}
+                        {% if org.fullAddress or org.address %}
+                            {% set addrText = org.fullAddress ?: org.address %}
+                            {% set mapsQuery = org.latitude and org.longitude
+                                ? org.latitude ~ ',' ~ org.longitude
+                                : addrText %}
                             <p class="text-muted small mb-1">
-                                <i class="bi bi-geo-alt me-1"></i>{{ org.fullAddress }}
-                            </p>
-                        {% elseif org.address %}
-                            <p class="text-muted small mb-1">
-                                <i class="bi bi-geo-alt me-1"></i>{{ org.address }}
+                                <i class="bi bi-geo-alt me-1"></i>
+                                <a href="https://www.google.com/maps/search/?api=1&query={{ mapsQuery|url_encode }}"
+                                   target="_blank" rel="noopener" class="text-muted text-decoration-none link-hover">{{ addrText }}</a>
                             </p>
                         {% endif %}
                         {% if org.description %}
@@ -102,14 +118,15 @@ const orgs = [
     {% for org in mappable %}
     {% set orgLocalName = org|localized('name') %}
     {
-        id:   {{ org.id }},
-        name: {{ orgLocalName|json_encode|raw }},
-        addr: {{ (org.fullAddress ?: org.address ?: '')|json_encode|raw }},
-        lat:  {{ org.latitude }},
-        lng:  {{ org.longitude }},
-        url:  {{ path('public_organization', {id: org.id})|json_encode|raw }},
-        logo: {{ org.logoFilename ? ('"/uploads/logos/' ~ org.logoFilename ~ '"')|raw : 'null' }},
-        viewBook: {{ 'public.map.view_book'|trans|json_encode|raw }}
+        id:        {{ org.id }},
+        name:      {{ orgLocalName|json_encode|raw }},
+        addr:      {{ (org.fullAddress ?: org.address ?: '')|json_encode|raw }},
+        mapsQuery: {{ (org.latitude ~ ',' ~ org.longitude)|json_encode|raw }},
+        lat:       {{ org.latitude }},
+        lng:       {{ org.longitude }},
+        url:       {{ path('public_organization', {id: org.id})|json_encode|raw }},
+        logo:      {{ org.logoFilename ? ('"/uploads/logos/' ~ org.logoFilename ~ '"')|raw : 'null' }},
+        viewBook:  {{ 'public.map.view_book'|trans|json_encode|raw }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
@@ -163,7 +180,7 @@ orgs.forEach(org => {
             <div style="min-width:200px">
                 ${org.logo ? `<img src="${org.logo}" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block">` : ''}
                 <div style="font-weight:700;font-size:14px;margin-bottom:2px">${org.name}</div>
-                ${org.addr ? `<div style="font-size:12px;color:#6b7280;margin-bottom:6px"><i class="bi bi-geo-alt"></i> ${org.addr}</div>` : ''}
+                ${org.addr ? `<div style="font-size:12px;color:#6b7280;margin-bottom:6px"><i class="bi bi-geo-alt"></i> <a href="https://www.google.com/maps/search/?api=1&query=${org.mapsQuery}" target="_blank" rel="noopener" style="color:#6b7280;text-decoration:none">${org.addr}</a></div>` : ''}
                 <a href="${org.url}" style="display:block;text-align:center;background:#6366f1;color:#fff;padding:6px 12px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;margin-top:4px">${org.viewBook}</a>
             </div>
         `, { minWidth: 210 });
@@ -186,6 +203,29 @@ if (bounds.length === 1) {
 } else {
     map.fitBounds(bounds, { padding: [32, 32] });
 }
+</script>
+{% endif %}
+{% if is_granted('ROLE_CLIENT') %}
+<script>
+document.querySelectorAll('.fav-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const url = btn.dataset.toggleUrl;
+        try {
+            const res  = await fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const data = await res.json();
+            const icon = btn.querySelector('i');
+            if (data.favourited) {
+                icon.className = 'bi bi-star-fill';
+                icon.style.color = '#f59e0b';
+                btn.title = {{ 'fav.remove'|trans|json_encode|raw }};
+            } else {
+                icon.className = 'bi bi-star';
+                icon.style.color = '';
+                btn.title = {{ 'fav.add'|trans|json_encode|raw }};
+            }
+        } catch(e) { console.error(e); }
+    });
+});
 </script>
 {% endif %}
 {% endblock %}

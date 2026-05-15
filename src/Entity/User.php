@@ -59,6 +59,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(mappedBy: 'client', targetEntity: Appointment::class, orphanRemoval: true)]
     private Collection $appointments;
 
+    #[ORM\ManyToMany(targetEntity: Organization::class)]
+    #[ORM\JoinTable(name: 'client_favourite_organization')]
+    private Collection $favouriteOrganizations;
+
     #[ORM\OneToOne(mappedBy: 'user', targetEntity: Employee::class)]
     private ?Employee $employee = null;
 
@@ -79,9 +83,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function __construct()
     {
-        $this->appointments = new ArrayCollection();
-        $this->createdAt    = new \DateTimeImmutable();
-        $this->updatedAt    = new \DateTimeImmutable();
+        $this->appointments            = new ArrayCollection();
+        $this->favouriteOrganizations  = new ArrayCollection();
+        $this->createdAt               = new \DateTimeImmutable();
+        $this->updatedAt               = new \DateTimeImmutable();
     }
 
     #[ORM\PreUpdate]
@@ -130,6 +135,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     /** @return Collection<int, Appointment> */
     public function getAppointments(): Collection { return $this->appointments; }
+
+    /** @return Collection<int, Organization> */
+    public function getFavouriteOrganizations(): Collection { return $this->favouriteOrganizations; }
+
+    public function addFavouriteOrganization(Organization $org): static
+    {
+        if (!$this->favouriteOrganizations->contains($org)) {
+            $this->favouriteOrganizations->add($org);
+        }
+        return $this;
+    }
+
+    public function removeFavouriteOrganization(Organization $org): static
+    {
+        $this->favouriteOrganizations->removeElement($org);
+        return $this;
+    }
+
+    public function isFavouriteOrganization(Organization $org): bool
+    {
+        return $this->favouriteOrganizations->contains($org);
+    }
 
     public function getEmployee(): ?Employee { return $this->employee; }
 

@@ -113,6 +113,17 @@ class EmployeeController extends AbstractController
                 $em->persist($employee);
                 $em->flush();
 
+                // Avatar upload (needs flush first so employee has an ID)
+                $avatarFile = $request->files->get('avatar');
+                if ($avatarFile && $avatarFile->isValid()) {
+                    $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars/';
+                    $ext        = $avatarFile->getClientOriginalExtension() ?: 'jpg';
+                    $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
+                    $avatarFile->move($uploadsDir, $filename);
+                    $employee->setAvatarFilename($filename);
+                    $em->flush();
+                }
+
                 $email = (new Email())
                     ->from('noreply@grafira.app')
                     ->to($loginEmail)
@@ -200,6 +211,25 @@ class EmployeeController extends AbstractController
                 }
 
                 $projectDir   = $this->getParameter('kernel.project_dir');
+
+                // Avatar
+                $avatarFile = $request->files->get('avatar');
+                if ($avatarFile && $avatarFile->isValid()) {
+                    $uploadsDir = $projectDir . '/public/uploads/avatars/';
+                    $ext        = $avatarFile->getClientOriginalExtension() ?: 'jpg';
+                    $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
+                    if ($employee->getAvatarFilename()) {
+                        @unlink($uploadsDir . $employee->getAvatarFilename());
+                    }
+                    $avatarFile->move($uploadsDir, $filename);
+                    $employee->setAvatarFilename($filename);
+                    // Keep linked user's navbar avatar in sync
+                    if ($employee->getUser()) {
+                        $employee->getUser()->setAvatarFilename($filename);
+                    }
+                }
+
+                // Portfolio
                 $removePhotos = $request->request->all('remove_photos');
                 $current      = $employee->getPortfolioPhotos() ?? [];
                 foreach ($removePhotos as $fname) {

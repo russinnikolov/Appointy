@@ -188,6 +188,26 @@ class PublicController extends AbstractController
         }));
     }
 
+    #[Route('/{orgId}/employee/{employeeId}', name: 'public_employee_profile', requirements: ['orgId' => '\d+', 'employeeId' => '\d+'])]
+    public function employeeProfile(
+        int $orgId,
+        int $employeeId,
+        OrganizationRepository $orgRepo,
+        EmployeeRepository $empRepo
+    ): Response {
+        $org      = $orgRepo->find($orgId);
+        $employee = $empRepo->find($employeeId);
+
+        if (!$org || !$employee || $employee->getOrganization() !== $org) {
+            throw $this->createNotFoundException('Organization or employee not found.');
+        }
+
+        return $this->render('public/employee_profile.html.twig', [
+            'organization' => $org,
+            'employee'     => $employee,
+        ]);
+    }
+
     #[Route('/{orgId}/book/{employeeId}', name: 'public_book', requirements: ['orgId' => '\d+', 'employeeId' => '\d+'])]
     public function book(
         int $orgId,
