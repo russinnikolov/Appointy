@@ -28,6 +28,64 @@ class AppointmentRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function countByClient(User $client): int
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->andWhere('a.client = :client')
+            ->setParameter('client', $client)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** @return Appointment[] */
+    public function findByClientPaginated(User $client, int $page, int $perPage = 10): array
+    {
+        return $this->createQueryBuilder('a')
+            ->andWhere('a.client = :client')
+            ->setParameter('client', $client)
+            ->orderBy('a.appointmentDate', 'DESC')
+            ->addOrderBy('a.appointmentTime', 'DESC')
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countByOrg(Organization $org, ?string $status = null): int
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->andWhere('a.organization = :org')
+            ->setParameter('org', $org);
+
+        if ($status) {
+            $qb->andWhere('a.status = :status')->setParameter('status', $status);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /** @return Appointment[] */
+    public function findByOrgPaginated(Organization $org, int $page, int $perPage = 10, ?string $status = null): array
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->leftJoin('a.employee', 'e')->addSelect('e')
+            ->leftJoin('a.client',   'u')->addSelect('u')
+            ->andWhere('a.organization = :org')
+            ->setParameter('org', $org)
+            ->orderBy('a.appointmentDate', 'DESC')
+            ->addOrderBy('a.appointmentTime', 'DESC')
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+
+        if ($status) {
+            $qb->andWhere('a.status = :status')->setParameter('status', $status);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
     /** @return Appointment[] */
     public function findByOrganization(Organization $org): array
     {

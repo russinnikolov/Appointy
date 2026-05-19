@@ -1,0 +1,165 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'appt.detail_title'|trans }} — {{ appt.organization.name }}{% endblock %}
+
+{% block body %}
+{% set isPast = appt.appointmentDate < date() %}
+
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ path('client_appointments') }}" class="btn btn-link text-muted ps-0">
+        <i class="bi bi-arrow-left me-1"></i>{{ 'appt.back_to_list'|trans }}
+    </a>
+    <div>
+        <h5 class="fw-bold mb-0">{{ 'appt.detail_title'|trans }}</h5>
+        <p class="text-muted small mb-0">{{ appt.organization.name }}</p>
+    </div>
+</div>
+
+<div class="row g-4" style="max-width:760px">
+
+    {# ── Date / Time / Status card ── #}
+    <div class="col-12">
+        <div class="card p-4 d-flex flex-row align-items-center gap-4 flex-wrap {{ isPast ? 'border-0' : '' }}"
+             style="{{ isPast ? 'opacity:.55;background:#f9fafb' : '' }}">
+
+            <div class="text-center px-3">
+                <div class="display-6 fw-bold lh-1" style="color:{{ isPast ? '#9ca3af' : '#111827' }}">
+                    {{ appt.appointmentDate|date('d') }}
+                </div>
+                <div class="text-uppercase small fw-semibold text-muted">
+                    {{ appt.appointmentDate|date('M Y') }}
+                </div>
+                <div class="mt-1 small text-muted">
+                    <i class="bi bi-clock me-1"></i>{{ appt.appointmentTime|date('H:i') }}
+                </div>
+            </div>
+
+            <div class="vr d-none d-sm-block" style="height:60px"></div>
+
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    {% if appt.status == 'pending' %}
+                        <span class="badge rounded-pill fs-6 px-3 py-2" style="background:#fef3c7;color:#92400e">
+                            <i class="bi bi-hourglass-split me-1"></i>{{ 'status.pending'|trans }}
+                        </span>
+                    {% elseif appt.status == 'confirmed' %}
+                        <span class="badge rounded-pill fs-6 px-3 py-2" style="background:#d1fae5;color:#065f46">
+                            <i class="bi bi-check-circle me-1"></i>{{ 'status.confirmed'|trans }}
+                        </span>
+                    {% else %}
+                        <span class="badge rounded-pill fs-6 px-3 py-2" style="background:#fee2e2;color:#991b1b">
+                            <i class="bi bi-x-circle me-1"></i>{{ 'status.cancelled'|trans }}
+                        </span>
+                    {% endif %}
+                    {% if isPast %}
+                        <span class="badge rounded-pill px-3 py-2" style="background:#f3f4f6;color:#6b7280">
+                            <i class="bi bi-calendar-x me-1"></i>{{ 'appt.past_badge'|trans }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <p class="text-muted small mb-0 mt-2">
+                    <i class="bi bi-clock-history me-1"></i>{{ 'appt.booked_at'|trans }}:
+                    {{ appt.createdAt|date('d M Y, H:i') }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {# ── Details card ── #}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body p-4">
+                <dl class="row mb-0 gy-3">
+
+                    <dt class="col-sm-4 text-muted fw-normal">
+                        <i class="bi bi-building me-1"></i>{{ 'appt.business'|trans }}
+                    </dt>
+                    <dd class="col-sm-8 mb-0">
+                        <a href="{{ path('public_organization', {id: appt.organization.id}) }}"
+                           class="fw-semibold text-decoration-none link-hover text-dark">
+                            {{ appt.organization.name }}
+                        </a>
+                        {% if appt.organization.phone %}
+                            <br>
+                            <a href="tel:{{ appt.organization.phone }}" class="text-muted small text-decoration-none link-hover">
+                                <i class="bi bi-telephone me-1"></i>{{ appt.organization.phone }}
+                            </a>
+                        {% endif %}
+                    </dd>
+
+                    {% if appt.employee %}
+                        <dt class="col-sm-4 text-muted fw-normal">
+                            <i class="bi bi-person me-1"></i>{{ 'appt.employee'|trans }}
+                        </dt>
+                        <dd class="col-sm-8 mb-0">
+                            <span class="fw-semibold">{{ appt.employee.name }}</span>
+                            {% if appt.employee.role %}
+                                <span class="text-muted small"> · {{ appt.employee.role }}</span>
+                            {% endif %}
+                            {% if appt.employee.phone %}
+                                <br>
+                                <a href="tel:{{ appt.employee.phone }}" class="text-muted small text-decoration-none link-hover">
+                                    <i class="bi bi-telephone me-1"></i>{{ appt.employee.phone }}
+                                </a>
+                            {% endif %}
+                        </dd>
+                    {% endif %}
+
+                    {% if appt.service %}
+                        <dt class="col-sm-4 text-muted fw-normal">
+                            <i class="bi bi-scissors me-1"></i>{{ 'appt.service'|trans }}
+                        </dt>
+                        <dd class="col-sm-8 mb-0">
+                            <span class="fw-semibold">{{ appt.service.name }}</span>
+                            {% if appt.durationMinutes %}
+                                <span class="text-muted small"> · {{ appt.durationMinutes }} {{ 'appt.duration_min'|trans }}</span>
+                            {% endif %}
+                        </dd>
+                    {% elseif appt.durationMinutes %}
+                        <dt class="col-sm-4 text-muted fw-normal">
+                            <i class="bi bi-stopwatch me-1"></i>{{ 'appt.duration'|trans }}
+                        </dt>
+                        <dd class="col-sm-8 mb-0">
+                            {{ appt.durationMinutes }} {{ 'appt.duration_min'|trans }}
+                        </dd>
+                    {% endif %}
+
+                    <dt class="col-sm-4 text-muted fw-normal">
+                        <i class="bi bi-chat-left-text me-1"></i>{{ 'appt.notes_label'|trans }}
+                    </dt>
+                    <dd class="col-sm-8 mb-0">
+                        {% if appt.notes %}
+                            <p class="mb-0" style="white-space:pre-wrap">{{ appt.notes }}</p>
+                        {% else %}
+                            <span class="text-muted fst-italic small">{{ 'appt.no_notes'|trans }}</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if appt.cancellationNote %}
+                        <dt class="col-sm-4 text-muted fw-normal">
+                            <i class="bi bi-x-octagon me-1"></i>{{ 'appt.cancel_note_label'|trans }}
+                        </dt>
+                        <dd class="col-sm-8 mb-0">
+                            <p class="mb-0 text-danger-emphasis" style="white-space:pre-wrap">{{ appt.cancellationNote }}</p>
+                        </dd>
+                    {% endif %}
+
+                </dl>
+            </div>
+
+            {% if appt.status == 'pending' and not isPast %}
+                <div class="card-footer bg-transparent border-top-0 pt-0 px-4 pb-4">
+                    <form method="post" action="{{ path('client_cancel', {id: appt.id}) }}"
+                          onsubmit="return confirm('{{ 'appt.cancel_q'|trans }}')">
+                        <input type="hidden" name="redirect_to" value="detail">
+                        <button class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-x-lg me-1"></i>{{ 'common.cancel'|trans }}
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

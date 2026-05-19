@@ -136,6 +136,14 @@ class BusinessDashboardController extends AbstractController
 
         $em->flush();
         $this->addFlash('success', $t->trans('flash.appointment_confirmed'));
+
+        $redirectTo = $request->request->get('redirect_to', '');
+        if ($redirectTo === 'list') {
+            return $this->redirectToRoute('business_appointments_list');
+        }
+        if ($redirectTo === 'detail') {
+            return $this->redirectToRoute('business_appointment_detail', ['id' => $appt->getId()]);
+        }
         return $this->redirectToRoute('business_dashboard');
     }
 
@@ -164,6 +172,14 @@ class BusinessDashboardController extends AbstractController
                  ->setCancellationNote($note ?: null);
             $em->flush();
             $this->addFlash('success', $t->trans('flash.appointment_cancelled'));
+
+            $redirectTo = $request->request->get('redirect_to', '');
+            if ($redirectTo === 'list') {
+                return $this->redirectToRoute('business_appointments_list');
+            }
+            if ($redirectTo === 'detail') {
+                return $this->redirectToRoute('business_appointment_detail', ['id' => $appt->getId()]);
+            }
         }
 
         return $this->redirectToRoute('business_dashboard');
@@ -201,5 +217,96 @@ class BusinessDashboardController extends AbstractController
             'duration_minutes' => $appt->getDurationMinutes(),
             'cancelled'        => $cancelled,
         ]);
+    }
+
+    #[Route('/appointments', name: 'business_appointments_list')]
+    public function allAppointments(Request $request, AppointmentRepository $repo): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $org  = $user->getOrganization();
+
+        if (!$org) {
+            return $this->redirectToRoute('business_dashboard');
+        }
+
+        $perPage = 10;
+        $status  = $request->query->get('status', '');
+        $status  = in_array($status, [Appointment::STATUS_PENDING, Appointment::STATUS_CONFIRMED, Appointment::STATUS_CANCELLED], true)
+            ? $status : null;
+
+        $page  = max(1, (int) $request->query->get('page', 1));
+        $total = $repo->countByOrg($org, $status);
+        $pages = (int) ceil($total / $perPage);
+        $page  = min($page, max(1, $pages));
+
+        return $this->render('business/appointments_list.html.twig', [
+            'organization'  => $org,
+            'appointments'  => $repo->findByOrgPaginated($org, $page, $perPage, $status),
+            'page'          => $page,
+            'pages'         => $pages,
+            'total'         => $total,
+            'status_filter' => $status ?? '',
+        ]);
+    }
+
+    #[Route('/appointments/{id}', name: 'business_appointment_detail', requirements: ['id' => '\d+'])]
+    public function appointmentDetail(int $id, AppointmentRepository $repo, EmployeeRepository $empRepo): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $org  = $user->getOrganization();
+        $appt = $repo->find($id);
+
+        if (!$appt || !$org || $appt->getOrganization() !== $org) {
+            throw $this->createNotFoundException('Reservation not found.');
+        }
+
+        return $this->render('business/appointment_detail.html.twig', [
+            'appt'         => $appt,
+            'organization' => $org,
+            'employees'    => $empRepo->findActiveByOrganization($org),
+        ]);
+    }
+
+    #[Route('/appointments/{id}/update', name: 'business_appointment_update', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function updateAppointment(
+        int $id,
+        Request $request,
+        AppointmentRepository $repo,
+        EmployeeRepository $empRepo,
+        EntityManagerInterface $em,
+        TranslatorInterface $t
+    ): Response {
+        /** @var User $user */
+        $user = $this->getUser();
+        $org  = $user->getOrganization();
+        $appt = $repo->find($id);
+
+        if (!$appt || !$org || $appt->getOrganization() !== $org
+            || $appt->getStatus() === Appointment::STATUS_CANCELLED) {
+            throw $this->createNotFoundException('Reservation not found.');
+        }
+
+        // ── Employee ──────────────────────────────────────────────────────────
+        $empId = $request->request->get('employee_id', '');
+        if ($empId === '') {
+            // "unassigned" selected
+            $appt->setEmployee(null);
+        } else {
+            $emp = $empRepo->find((int) $empId);
+            if ($emp && $emp->getOrganization() === $org && $emp->isActive()) {
+                $appt->setEmployee($emp);
+            }
+        }
+
+        // ── Duration ─────────────────────────────────────────────────────────
+        $minutes = (int) $request->request->get('duration_minutes', 0);
+        $appt->setDurationMinutes($minutes > 0 ? $minutes : null);
+
+        $em->flush();
+        $this->addFlash('success', $t->trans('flash.appointment_updated'));
+
+        return $this->redirectToRoute('business_appointment_detail', ['id' => $appt->getId()]);
     }
 }

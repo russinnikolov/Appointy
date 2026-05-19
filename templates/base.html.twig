@@ -158,5 +158,73 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% block scripts %}{% endblock %}
+{% if app.user %}
+<script>
+(function () {
+    const INACTIVE_MS = 15 * 60 * 1000;   // 15 minutes until warning
+    const COUNTDOWN_S = 60;                // seconds shown in the alert before auto-logout
+    const LOGOUT_URL  = {{ path('logout')|json_encode|raw }};
+
+    const T = {
+        title:    {{ 'idle.title'|trans|json_encode|raw }},
+        html:     {{ 'idle.html'|trans|json_encode|raw }},
+        confirm:  {{ 'idle.keep'|trans|json_encode|raw }},
+        cancel:   {{ 'idle.logout'|trans|json_encode|raw }},
+    };
+
+    let idleTimer   = null;
+    let alertOpen   = false;
+
+    function resetTimer() {
+        if (alertOpen) return;
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(showWarning, INACTIVE_MS);
+    }
+
+    function showWarning() {
+        alertOpen = true;
+        let sLeft = COUNTDOWN_S;
+        let ticker = null;
+
+        Swal.fire({
+            title:              T.title,
+            html:               T.html.replace('%s', `<b id="idleSec">${sLeft}</b>`),
+            icon:               'warning',
+            showCancelButton:   true,
+            confirmButtonText:  T.confirm,
+            cancelButtonText:   T.cancel,
+            confirmButtonColor: '#6366f1',
+            cancelButtonColor:  '#ef4444',
+            allowOutsideClick:  false,
+            allowEscapeKey:     false,
+            reverseButtons:     true,
+            timerProgressBar:   true,
+            timer:              COUNTDOWN_S * 1000,
+            didOpen: () => {
+                ticker = setInterval(() => {
+                    sLeft--;
+                    const el = document.getElementById('idleSec');
+                    if (el) el.textContent = sLeft;
+                }, 1000);
+            },
+            willClose: () => clearInterval(ticker),
+        }).then(result => {
+            alertOpen = false;
+            if (result.isConfirmed) {
+                resetTimer();          // user chose "Keep me logged in"
+            } else {
+                window.location.href = LOGOUT_URL;   // timer expired or "Logout"
+            }
+        });
+    }
+
+    ['mousemove', 'keydown', 'mousedown', 'scroll', 'touchstart'].forEach(ev =>
+        document.addEventListener(ev, resetTimer, { passive: true })
+    );
+
+    resetTimer();
+})();
+</script>
+{% endif %}
 </body>
 </html>

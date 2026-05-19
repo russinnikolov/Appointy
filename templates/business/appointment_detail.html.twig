@@ -1,0 +1,345 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'appt.detail_title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block body %}
+{% set isPast = appt.appointmentDate < date() %}
+
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ path('business_appointments_list') }}" class="btn btn-link text-muted ps-0">
+        <i class="bi bi-arrow-left me-1"></i>{{ 'appt.back_to_list'|trans }}
+    </a>
+    <div>
+        <h5 class="fw-bold mb-0">{{ 'appt.detail_title'|trans }}</h5>
+        <p class="text-muted small mb-0">{{ organization.name }}</p>
+    </div>
+</div>
+
+<div class="row g-4" style="max-width:820px">
+
+    {# ── Date / Time / Status hero card ── #}
+    <div class="col-12">
+        <div class="card p-4 d-flex flex-row align-items-center gap-4 flex-wrap {{ isPast ? 'border-0' : '' }}"
+             style="{{ isPast ? 'opacity:.55;background:#f9fafb' : '' }}">
+
+            <div class="text-center px-3">
+                <div class="display-6 fw-bold lh-1" style="color:{{ isPast ? '#9ca3af' : '#111827' }}">
+                    {{ appt.appointmentDate|date('d') }}
+                </div>
+                <div class="text-uppercase small fw-semibold text-muted">
+                    {{ appt.appointmentDate|date('M Y') }}
+                </div>
+                <div class="mt-1 small text-muted">
+                    <i class="bi bi-clock me-1"></i>{{ appt.appointmentTime|date('H:i') }}
+                </div>
+            </div>
+
+            <div class="vr d-none d-sm-block" style="height:60px"></div>
+
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    {% if appt.status == 'pending' %}
+                        <span class="badge rounded-pill fs-6 px-3 py-2" style="background:#fef3c7;color:#92400e">
+                            <i class="bi bi-hourglass-split me-1"></i>{{ 'status.pending'|trans }}
+                        </span>
+                    {% elseif appt.status == 'confirmed' %}
+                        <span class="badge rounded-pill fs-6 px-3 py-2" style="background:#d1fae5;color:#065f46">
+                            <i class="bi bi-check-circle me-1"></i>{{ 'status.confirmed'|trans }}
+                        </span>
+                    {% else %}
+                        <span class="badge rounded-pill fs-6 px-3 py-2" style="background:#fee2e2;color:#991b1b">
+                            <i class="bi bi-x-circle me-1"></i>{{ 'status.cancelled'|trans }}
+                        </span>
+                    {% endif %}
+                    {% if isPast %}
+                        <span class="badge rounded-pill px-3 py-2" style="background:#f3f4f6;color:#6b7280">
+                            <i class="bi bi-calendar-x me-1"></i>{{ 'appt.past_badge'|trans }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <p class="text-muted small mb-0 mt-2">
+                    <i class="bi bi-clock-history me-1"></i>{{ 'appt.booked_at'|trans }}:
+                    {{ appt.createdAt|date('d M Y, H:i') }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {# ── Info + Manage: two columns on md+ ── #}
+    <div class="col-md-7">
+
+        {# Details card #}
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <dl class="row mb-0 gy-3">
+
+                    <dt class="col-sm-4 text-muted fw-normal">
+                        <i class="bi bi-person me-1"></i>{{ 'appt.client'|trans }}
+                    </dt>
+                    <dd class="col-sm-8 mb-0">
+                        {% if appt.client %}
+                            <span class="fw-semibold">{{ appt.client.name }}</span>
+                            {% if appt.client.phone %}
+                                <br>
+                                <a href="tel:{{ appt.client.phone }}" class="text-muted small text-decoration-none link-hover">
+                                    <i class="bi bi-telephone me-1"></i>{{ appt.client.phone }}
+                                </a>
+                            {% endif %}
+                            {% if appt.client.email %}
+                                <br>
+                                <a href="mailto:{{ appt.client.email }}" class="text-muted small text-decoration-none link-hover">
+                                    <i class="bi bi-envelope me-1"></i>{{ appt.client.email }}
+                                </a>
+                            {% endif %}
+                        {% elseif appt.guestName %}
+                            <span class="fw-semibold">{{ appt.guestName }}</span>
+                            <span class="badge bg-light text-secondary border ms-1" style="font-size:.65rem">{{ 'appt.guest'|trans }}</span>
+                            {% if appt.guestPhone %}
+                                <br>
+                                <a href="tel:{{ appt.guestPhone }}" class="text-muted small text-decoration-none link-hover">
+                                    <i class="bi bi-telephone me-1"></i>{{ appt.guestPhone }}
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted fst-italic">—</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted fw-normal">
+                        <i class="bi bi-person-badge me-1"></i>{{ 'appt.employee'|trans }}
+                    </dt>
+                    <dd class="col-sm-8 mb-0">
+                        {% if appt.employee %}
+                            <span class="fw-semibold">{{ appt.employee.name }}</span>
+                            {% if appt.employee.role %}
+                                <span class="text-muted small"> · {{ appt.employee.role }}</span>
+                            {% endif %}
+                            {% if appt.employee.phone %}
+                                <br>
+                                <a href="tel:{{ appt.employee.phone }}" class="text-muted small text-decoration-none link-hover">
+                                    <i class="bi bi-telephone me-1"></i>{{ appt.employee.phone }}
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted fst-italic small">{{ 'appt.unassigned'|trans }}</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if appt.service %}
+                        <dt class="col-sm-4 text-muted fw-normal">
+                            <i class="bi bi-scissors me-1"></i>{{ 'appt.service'|trans }}
+                        </dt>
+                        <dd class="col-sm-8 mb-0">
+                            <span class="fw-semibold">{{ appt.service.name }}</span>
+                            {% if appt.durationMinutes %}
+                                <span class="text-muted small"> · {{ appt.durationMinutes }} {{ 'appt.duration_min'|trans }}</span>
+                            {% elseif appt.service.durationMinutes %}
+                                <span class="text-muted small"> · {{ appt.service.durationMinutes }} {{ 'appt.duration_min'|trans }} ({{ 'appt.duration_default'|trans }})</span>
+                            {% endif %}
+                        </dd>
+                    {% endif %}
+
+                    {% if appt.durationMinutes and not appt.service %}
+                        <dt class="col-sm-4 text-muted fw-normal">
+                            <i class="bi bi-stopwatch me-1"></i>{{ 'appt.duration'|trans }}
+                        </dt>
+                        <dd class="col-sm-8 mb-0">{{ appt.durationMinutes }} {{ 'appt.duration_min'|trans }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-4 text-muted fw-normal">
+                        <i class="bi bi-chat-left-text me-1"></i>{{ 'appt.notes_label'|trans }}
+                    </dt>
+                    <dd class="col-sm-8 mb-0">
+                        {% if appt.notes %}
+                            <p class="mb-0" style="white-space:pre-wrap">{{ appt.notes }}</p>
+                        {% else %}
+                            <span class="text-muted fst-italic small">{{ 'appt.no_notes'|trans }}</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if appt.cancellationNote %}
+                        <dt class="col-sm-4 text-muted fw-normal">
+                            <i class="bi bi-x-octagon me-1"></i>{{ 'appt.cancel_note_label'|trans }}
+                        </dt>
+                        <dd class="col-sm-8 mb-0">
+                            <p class="mb-0 text-danger-emphasis" style="white-space:pre-wrap">{{ appt.cancellationNote }}</p>
+                        </dd>
+                    {% endif %}
+
+                </dl>
+            </div>
+
+            {% if appt.status != 'cancelled' %}
+                <div class="card-footer bg-transparent d-flex gap-2 flex-wrap px-4 pb-4 pt-0 border-top-0">
+                    {% if appt.status == 'pending' %}
+                        <form method="post" action="{{ path('business_confirm', {id: appt.id}) }}"
+                              onsubmit="return confirm('{{ 'appt.confirm_q'|trans }}')">
+                            <input type="hidden" name="redirect_to" value="detail">
+                            <button class="btn btn-success btn-sm">
+                                <i class="bi bi-check-lg me-1"></i>{{ 'common.confirm'|trans }}
+                            </button>
+                        </form>
+                    {% endif %}
+                    <form method="post" action="{{ path('business_cancel', {id: appt.id}) }}"
+                          onsubmit="return confirm('{{ 'appt.cancel_q'|trans }}')">
+                        <input type="hidden" name="redirect_to" value="detail">
+                        <button class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-x-lg me-1"></i>{{ 'common.cancel'|trans }}
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Manage panel (only when not cancelled) ── #}
+    {% if appt.status != 'cancelled' %}
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-4" style="color:#374151">
+                    <i class="bi bi-sliders me-2"></i>{{ 'appt.manage_section'|trans }}
+                </h6>
+
+                <form method="post" action="{{ path('business_appointment_update', {id: appt.id}) }}">
+
+                    {# ── Employee ── #}
+                    <div class="mb-4">
+                        <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.04em">
+                            <i class="bi bi-person-badge me-1"></i>{{ 'appt.employee_label'|trans }}
+                        </label>
+                        <select name="employee_id" class="form-select form-select-sm">
+                            <option value="" {{ appt.employee is null ? 'selected' : '' }}>
+                                — {{ 'appt.unassigned'|trans }} —
+                            </option>
+                            {% for emp in employees %}
+                                <option value="{{ emp.id }}" {{ appt.employee and appt.employee.id == emp.id ? 'selected' : '' }}>
+                                    {{ emp.name }}{% if emp.role %} · {{ emp.role }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {# ── Duration ── #}
+                    <div class="mb-4">
+                        <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.04em">
+                            <i class="bi bi-stopwatch me-1"></i>{{ 'appt.duration_label'|trans }}
+                        </label>
+
+                        {# Hidden actual value submitted with the form #}
+                        <input type="hidden" id="durationMinutes" name="duration_minutes"
+                               value="{{ appt.durationMinutes ?? 0 }}">
+
+                        {# Quick preset + Custom buttons #}
+                        <div class="d-flex flex-wrap gap-1 mb-2">
+                            {% for preset in [15, 30, 45, 60, 90, 120] %}
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary preset-btn"
+                                        data-minutes="{{ preset }}">
+                                    {{ preset }} {{ 'appt.duration_min'|trans }}
+                                </button>
+                            {% endfor %}
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary preset-btn"
+                                    data-minutes="0">
+                                {{ 'appt.duration_default'|trans }}
+                            </button>
+                            <button type="button"
+                                    id="customBtn"
+                                    class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-pencil me-1"></i>{{ 'appt.duration_custom'|trans }}
+                            </button>
+                        </div>
+
+                        {# Custom input — shown only when Custom is active #}
+                        <div id="customInputWrap" class="d-none mt-2">
+                            <div class="input-group input-group-sm" style="max-width:180px">
+                                <input type="number"
+                                       id="customInput"
+                                       class="form-control"
+                                       min="1"
+                                       step="1"
+                                       placeholder="e.g. 75">
+                                <span class="input-group-text">{{ 'appt.duration_min'|trans }}</span>
+                            </div>
+                            <div class="form-text">{{ 'appt.duration_hint'|trans }}</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-floppy me-1"></i>{{ 'appt.save_changes'|trans }}
+                    </button>
+
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ parent() }}
+<script>
+(function () {
+    const hidden      = document.getElementById('durationMinutes');
+    const presetBtns  = document.querySelectorAll('.preset-btn');
+    const customBtn   = document.getElementById('customBtn');
+    const customWrap  = document.getElementById('customInputWrap');
+    const customInput = document.getElementById('customInput');
+    if (!hidden) return;
+
+    const PRESETS = [15, 30, 45, 60, 90, 120, 0];
+
+    function isPreset(val) {
+        return PRESETS.includes(val);
+    }
+
+    function setActive(activeEl) {
+        presetBtns.forEach(b => {
+            b.classList.toggle('btn-secondary',         b === activeEl);
+            b.classList.toggle('btn-outline-secondary', b !== activeEl);
+        });
+        const customActive = activeEl === customBtn;
+        customBtn.classList.toggle('btn-secondary',         customActive);
+        customBtn.classList.toggle('btn-outline-secondary', !customActive);
+        customWrap.classList.toggle('d-none', !customActive);
+        if (customActive) customInput.focus();
+    }
+
+    // Preset buttons
+    presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            hidden.value = btn.dataset.minutes;
+            setActive(btn);
+        });
+    });
+
+    // Custom button
+    customBtn.addEventListener('click', () => {
+        // Pre-fill custom input with current value if it's not 0
+        const cur = parseInt(hidden.value, 10) || 0;
+        customInput.value = cur > 0 ? cur : '';
+        setActive(customBtn);
+    });
+
+    // Typing in custom input updates the hidden field
+    customInput.addEventListener('input', () => {
+        const v = parseInt(customInput.value, 10);
+        hidden.value = (v > 0) ? v : 0;
+    });
+
+    // Initialise — highlight the button that matches the current value
+    const initial = parseInt(hidden.value, 10) || 0;
+    if (isPreset(initial)) {
+        const match = [...presetBtns].find(b => parseInt(b.dataset.minutes, 10) === initial);
+        if (match) setActive(match);
+    } else {
+        // Non-preset value already saved — activate Custom and show input
+        customInput.value = initial;
+        setActive(customBtn);
+    }
+}());
+</script>
+{% endblock %}

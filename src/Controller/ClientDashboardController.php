@@ -200,8 +200,51 @@ class ClientDashboardController extends AbstractController
                  ->setCancellationNote($note ?: null);
             $em->flush();
             $this->addFlash('success', $t->trans('flash.appointment_cancelled'));
+
+            $redirectTo = $request->request->get('redirect_to', '');
+            if ($redirectTo === 'list') {
+                return $this->redirectToRoute('client_appointments');
+            }
+            if ($redirectTo === 'detail') {
+                return $this->redirectToRoute('client_appointment_detail', ['id' => $appt->getId()]);
+            }
         }
 
         return $this->redirectToRoute('client_dashboard');
+    }
+
+    #[Route('/appointments', name: 'client_appointments')]
+    public function appointments(Request $request, AppointmentRepository $repo): Response
+    {
+        /** @var User $user */
+        $user    = $this->getUser();
+        $perPage = 10;
+        $page    = max(1, (int) $request->query->get('page', 1));
+        $total   = $repo->countByClient($user);
+        $pages   = (int) ceil($total / $perPage);
+        $page    = min($page, max(1, $pages));
+
+        return $this->render('client/appointments.html.twig', [
+            'appointments' => $repo->findByClientPaginated($user, $page, $perPage),
+            'page'         => $page,
+            'pages'        => $pages,
+            'total'        => $total,
+        ]);
+    }
+
+    #[Route('/appointments/{id}', name: 'client_appointment_detail', requirements: ['id' => '\d+'])]
+    public function appointmentDetail(int $id, AppointmentRepository $repo): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $appt = $repo->find($id);
+
+        if (!$appt || $appt->getClient() !== $user) {
+            throw $this->createNotFoundException('Reservation not found.');
+        }
+
+        return $this->render('client/appointment_detail.html.twig', [
+            'appt' => $appt,
+        ]);
     }
 }

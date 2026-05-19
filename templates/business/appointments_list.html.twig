@@ -1,0 +1,157 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'appt.all_title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ path('business_dashboard') }}" class="btn btn-link text-muted ps-0">
+            <i class="bi bi-arrow-left me-1"></i>{{ 'nav.dashboard'|trans }}
+        </a>
+        <div>
+            <h5 class="fw-bold mb-0">{{ 'appt.all_title'|trans }}</h5>
+            <p class="text-muted small mb-0">{{ total }} {{ 'appt.total'|trans }}</p>
+        </div>
+    </div>
+
+    {# Status filter #}
+    <div class="btn-group btn-group-sm" role="group">
+        {% for s in ['', 'pending', 'confirmed', 'cancelled'] %}
+            {% set label = s == '' ? 'common.all'|trans : ('status.' ~ s)|trans %}
+            {% set cls   = s == status_filter ? 'btn-secondary' : 'btn-outline-secondary' %}
+            <a href="{{ path('business_appointments_list', {status: s, page: 1}) }}"
+               class="btn {{ cls }}">{{ label }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+{% if appointments is empty %}
+    <div class="card p-5 text-center">
+        <div style="font-size:3rem;color:#d1d5db"><i class="bi bi-calendar-x"></i></div>
+        <h5 class="fw-semibold mt-3 mb-1">{{ 'appt.none'|trans }}</h5>
+    </div>
+{% else %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ 'common.date'|trans }}</th>
+                        <th>{{ 'appt.client'|trans }}</th>
+                        <th>{{ 'appt.employee'|trans }}</th>
+                        <th>{{ 'appt.service'|trans }}</th>
+                        <th class="text-center">{{ 'appt.status'|trans }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for appt in appointments %}
+                    {% set isPast = appt.appointmentDate < date() %}
+                    <tr class="{{ isPast ? 'text-muted' : '' }}" style="{{ isPast ? 'opacity:.45' : '' }}">
+                        <td class="text-nowrap">
+                            <div class="fw-semibold">{{ appt.appointmentDate|date('d M Y') }}</div>
+                            <div class="small text-muted">{{ appt.appointmentTime|date('H:i') }}</div>
+                            {% if isPast %}
+                                <span class="badge rounded-pill mt-1" style="background:#f3f4f6;color:#6b7280;font-size:.65rem">{{ 'appt.past_badge'|trans }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if appt.client %}
+                                <div class="fw-semibold">{{ appt.client.name }}</div>
+                                {% if appt.client.phone %}
+                                    <a href="tel:{{ appt.client.phone }}" class="text-muted small text-decoration-none link-hover">
+                                        <i class="bi bi-telephone me-1"></i>{{ appt.client.phone }}
+                                    </a>
+                                {% endif %}
+                            {% elseif appt.guestName %}
+                                <div class="fw-semibold">{{ appt.guestName }}</div>
+                                {% if appt.guestPhone %}
+                                    <a href="tel:{{ appt.guestPhone }}" class="text-muted small text-decoration-none link-hover">
+                                        <i class="bi bi-telephone me-1"></i>{{ appt.guestPhone }}
+                                    </a>
+                                {% endif %}
+                                <span class="badge bg-light text-secondary border ms-1" style="font-size:.65rem">{{ 'appt.guest'|trans }}</span>
+                            {% else %}
+                                <span class="text-muted fst-italic small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">
+                            {% if appt.employee %}
+                                {{ appt.employee.name }}
+                                {% if appt.employee.role %}
+                                    <br><span class="text-muted">({{ appt.employee.role }})</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="fst-italic">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">
+                            {{ appt.service ? appt.service.name : '—' }}
+                        </td>
+                        <td class="text-center">
+                            {% if appt.status == 'pending' %}
+                                <span class="badge rounded-pill" style="background:#fef3c7;color:#92400e">{{ 'status.pending'|trans }}</span>
+                            {% elseif appt.status == 'confirmed' %}
+                                <span class="badge rounded-pill" style="background:#d1fae5;color:#065f46">{{ 'status.confirmed'|trans }}</span>
+                            {% else %}
+                                <span class="badge rounded-pill" style="background:#f3f4f6;color:#6b7280">{{ 'status.cancelled'|trans }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            {% if appt.status == 'pending' %}
+                                <form method="post" action="{{ path('business_confirm', {id: appt.id}) }}"
+                                      class="d-inline" onsubmit="return confirm('{{ 'appt.confirm_q'|trans }}')">
+                                    <input type="hidden" name="redirect_to" value="list">
+                                    <button class="btn btn-success btn-sm">
+                                        <i class="bi bi-check-lg me-1"></i>{{ 'common.confirm'|trans }}
+                                    </button>
+                                </form>
+                            {% endif %}
+                            {% if appt.status != 'cancelled' %}
+                                <form method="post" action="{{ path('business_cancel', {id: appt.id}) }}"
+                                      class="d-inline" onsubmit="return confirm('{{ 'appt.cancel_q'|trans }}')">
+                                    <input type="hidden" name="redirect_to" value="list">
+                                    <button class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-x-lg me-1"></i>{{ 'common.cancel'|trans }}
+                                    </button>
+                                </form>
+                            {% endif %}
+                            <a href="{{ path('business_appointment_detail', {id: appt.id}) }}"
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-info-circle me-1"></i>{{ 'appt.details'|trans }}
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# Pagination #}
+    {% if pages > 1 %}
+        <nav class="mt-4 d-flex justify-content-center">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {{ page == 1 ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ path('business_appointments_list', {page: page - 1, status: status_filter}) }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% for p in 1..pages %}
+                    {% if p == 1 or p == pages or (p >= page - 2 and p <= page + 2) %}
+                        <li class="page-item {{ p == page ? 'active' : '' }}">
+                            <a class="page-link" href="{{ path('business_appointments_list', {page: p, status: status_filter}) }}">{{ p }}</a>
+                        </li>
+                    {% elseif p == page - 3 or p == page + 3 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {{ page == pages ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ path('business_appointments_list', {page: page + 1, status: status_filter}) }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    {% endif %}
+{% endif %}
+{% endblock %}
