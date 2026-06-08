@@ -72,6 +72,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(options: ['default' => false])]
     private bool $mustChangePassword = false;
 
+    /** Preferred UI locale (bg|en). NULL means auto-detect on each session. */
+    #[ORM\Column(length: 5, nullable: true)]
+    private ?string $locale = null;
+
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $messagingApps = null;
 
@@ -165,6 +169,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function isMustChangePassword(): bool { return $this->mustChangePassword; }
     public function setMustChangePassword(bool $v): static { $this->mustChangePassword = $v; return $this; }
+
+    public function getLocale(): ?string { return $this->locale; }
+    public function setLocale(?string $v): static { $this->locale = $v; return $this; }
 
     public const MESSAGING_APPS = ['whatsapp', 'telegram', 'viber', 'sms'];
 

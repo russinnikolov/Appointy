@@ -16,6 +16,10 @@ nav.as_business: 'As Business'
 nav.working_hours: 'Working Hours'
 nav.employees: 'Employees'
 nav.location: 'Location'
+nav.manage: 'Manage'
+nav.account: 'Account'
+nav.settings: 'Settings'
+nav.language: 'Language'
 
 # ── Common ──
 common.save: 'Save'

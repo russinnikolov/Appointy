@@ -37,27 +37,11 @@
 {% endblock %}
 
 {% block body %}
-<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
-    <div>
-        <h4 class="fw-bold mb-0">{{ organization.name }}</h4>
-        <p class="text-muted small mb-0">
-            {% if organization.category %}{{ ('category.' ~ organization.category)|trans }}{% endif %}{% if organization.category and organization.address %} · {% endif %}{{ organization.address }}
-        </p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <a href="{{ path('business_blocked_times') }}" class="btn btn-outline-danger btn-sm">
-            <i class="bi bi-slash-circle me-1"></i>{{ 'nav.blocked_times'|trans }}
-        </a>
-        <a href="{{ path('business_settings_info') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-geo-alt me-1"></i>{{ 'nav.location'|trans }}
-        </a>
-        <a href="{{ path('business_working_hours') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-clock me-1"></i>{{ 'nav.working_hours'|trans }}
-        </a>
-        <a href="{{ path('business_employees') }}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-people me-1"></i>{{ 'nav.employees'|trans }}
-        </a>
-    </div>
+<div class="mb-4">
+    <h4 class="fw-bold mb-0">{{ organization.name }}</h4>
+    <p class="text-muted small mb-0">
+        {% if organization.category %}{{ ('category.' ~ organization.category)|trans }}{% endif %}{% if organization.category and organization.address %} · {% endif %}{{ organization.address }}
+    </p>
 </div>
 
 <div class="row g-3 mb-4">

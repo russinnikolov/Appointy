@@ -97,23 +97,25 @@
                             {% endif %}
                         </td>
                         <td class="text-end text-nowrap">
-                            {% if appt.status == 'pending' %}
-                                <form method="post" action="{{ path('business_confirm', {id: appt.id}) }}"
-                                      class="d-inline" onsubmit="return confirm('{{ 'appt.confirm_q'|trans }}')">
-                                    <input type="hidden" name="redirect_to" value="list">
-                                    <button class="btn btn-success btn-sm">
-                                        <i class="bi bi-check-lg me-1"></i>{{ 'common.confirm'|trans }}
-                                    </button>
-                                </form>
-                            {% endif %}
-                            {% if appt.status != 'cancelled' %}
-                                <form method="post" action="{{ path('business_cancel', {id: appt.id}) }}"
-                                      class="d-inline" onsubmit="return confirm('{{ 'appt.cancel_q'|trans }}')">
-                                    <input type="hidden" name="redirect_to" value="list">
-                                    <button class="btn btn-outline-danger btn-sm">
-                                        <i class="bi bi-x-lg me-1"></i>{{ 'common.cancel'|trans }}
-                                    </button>
-                                </form>
+                            {% if not isPast %}
+                                {% if appt.status == 'pending' %}
+                                    <form method="post" action="{{ path('business_confirm', {id: appt.id}) }}"
+                                          class="d-inline" onsubmit="return confirm('{{ 'appt.confirm_q'|trans }}')">
+                                        <input type="hidden" name="redirect_to" value="list">
+                                        <button class="btn btn-success btn-sm">
+                                            <i class="bi bi-check-lg me-1"></i>{{ 'common.confirm'|trans }}
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                {% if appt.status != 'cancelled' %}
+                                    <form method="post" action="{{ path('business_cancel', {id: appt.id}) }}"
+                                          class="d-inline" onsubmit="return confirm('{{ 'appt.cancel_q'|trans }}')">
+                                        <input type="hidden" name="redirect_to" value="list">
+                                        <button class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-x-lg me-1"></i>{{ 'common.cancel'|trans }}
+                                        </button>
+                                    </form>
+                                {% endif %}
                             {% endif %}
                             <a href="{{ path('business_appointment_detail', {id: appt.id}) }}"
                                class="btn btn-outline-secondary btn-sm">

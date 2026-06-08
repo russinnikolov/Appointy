@@ -36,16 +36,11 @@
         <h4 class="fw-bold mb-0">{{ 'client.title'|trans }}</h4>
         <p class="text-muted small mb-0">{{ 'client.welcome'|trans }}, {{ app.user.name }}</p>
     </div>
-    <div class="d-flex gap-2">
-        {% if has_appointments %}
-            <a href="{{ path('client_appointments') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-list-ul me-1"></i>{{ 'appt.view_all'|trans }}
-            </a>
-        {% endif %}
-        <a href="{{ path('client_organizations') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>{{ 'client.book_new'|trans }}
+    {% if has_appointments %}
+        <a href="{{ path('client_appointments') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-list-ul me-1"></i>{{ 'appt.view_all'|trans }}
         </a>
-    </div>
+    {% endif %}
 </div>
 
 {% if not has_appointments %}

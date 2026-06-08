@@ -1,5 +1,5 @@
 # ── Navigation ──
-nav.dashboard: 'Табло'
+nav.dashboard:    'Табло'
 nav.services: 'Услуги'
 nav.blocked_times: 'Блокирано Време'
 nav.my_schedule: 'Моят График'
@@ -15,7 +15,11 @@ nav.as_client: 'Като Клиент'
 nav.as_business: 'Като Бизнес'
 nav.working_hours: 'Работно Време'
 nav.employees: 'Служители'
-nav.location: 'Местоположение'
+nav.location:  'Местоположение'
+nav.manage:    'Управление'
+nav.account:   'Акаунт'
+nav.settings:  'Настройки'
+nav.language:  'Език'
 
 # ── Common ──
 common.save: 'Запази'

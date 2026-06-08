@@ -104,10 +104,12 @@ class PublicController extends AbstractController
             }
 
             $step           = $org->getTimeStep();
+            $effectiveStep  = $service ? $service->getDurationMinutes() : $step;
             $allowedMinutes = [];
-            for ($m = 0; $m < 60; $m += $step) {
-                $allowedMinutes[] = str_pad((string) $m, 2, '0', STR_PAD_LEFT);
+            for ($m = 0; $m < 24 * 60; $m += $effectiveStep) {
+                $allowedMinutes[] = str_pad((string) ($m % 60), 2, '0', STR_PAD_LEFT);
             }
+            $allowedMinutes = array_unique($allowedMinutes);
 
             $renderForm = fn(string $msg) => $this->render('public/book_org.html.twig', [
                 'organization' => $org,
@@ -246,11 +248,13 @@ class PublicController extends AbstractController
                 }
             }
 
-            $step  = $org->getTimeStep();
+            $step           = $org->getTimeStep();
+            $effectiveStep  = $service ? $service->getDurationMinutes() : $step;
             $allowedMinutes = [];
-            for ($m = 0; $m < 60; $m += $step) {
-                $allowedMinutes[] = str_pad((string) $m, 2, '0', STR_PAD_LEFT);
+            for ($m = 0; $m < 24 * 60; $m += $effectiveStep) {
+                $allowedMinutes[] = str_pad((string) ($m % 60), 2, '0', STR_PAD_LEFT);
             }
+            $allowedMinutes = array_unique($allowedMinutes);
 
             $renderForm = fn(string $msg) => $this->render('public/book.html.twig', [
                 'organization' => $org,

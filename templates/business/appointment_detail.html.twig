@@ -169,7 +169,7 @@
                 </dl>
             </div>
 
-            {% if appt.status != 'cancelled' %}
+            {% if appt.status != 'cancelled' and not isPast %}
                 <div class="card-footer bg-transparent d-flex gap-2 flex-wrap px-4 pb-4 pt-0 border-top-0">
                     {% if appt.status == 'pending' %}
                         <form method="post" action="{{ path('business_confirm', {id: appt.id}) }}"
@@ -192,8 +192,8 @@
         </div>
     </div>
 
-    {# ── Manage panel (only when not cancelled) ── #}
-    {% if appt.status != 'cancelled' %}
+    {# ── Manage panel (only when not cancelled and not past) ── #}
+    {% if appt.status != 'cancelled' and not isPast %}
     <div class="col-md-5">
         <div class="card h-100">
             <div class="card-body p-4">
@@ -220,7 +220,8 @@
                         </select>
                     </div>
 
-                    {# ── Duration ── #}
+                    {# ── Duration — hidden when a service is attached (service defines the duration) ── #}
+                    {% if not appt.service %}
                     <div class="mb-4">
                         <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.04em">
                             <i class="bi bi-stopwatch me-1"></i>{{ 'appt.duration_label'|trans }}
@@ -265,6 +266,7 @@
                             <div class="form-text">{{ 'appt.duration_hint'|trans }}</div>
                         </div>
                     </div>
+                    {% endif %}{# /not appt.service #}
 
                     <button type="submit" class="btn btn-primary btn-sm w-100">
                         <i class="bi bi-floppy me-1"></i>{{ 'appt.save_changes'|trans }}

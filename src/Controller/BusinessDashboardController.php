@@ -94,7 +94,8 @@ class BusinessDashboardController extends AbstractController
         $org  = $user->getOrganization();
         $appt = $repo->find($id);
 
-        if (!$appt || $appt->getOrganization() !== $org || $appt->getStatus() !== Appointment::STATUS_PENDING) {
+        if (!$appt || $appt->getOrganization() !== $org || $appt->getStatus() !== Appointment::STATUS_PENDING
+            || $appt->getAppointmentDate() < new \DateTime('today')) {
             return $this->redirectToRoute('business_dashboard');
         }
 
@@ -156,7 +157,8 @@ class BusinessDashboardController extends AbstractController
         $appt = $repo->find($id);
 
         if ($appt && $appt->getOrganization() === $org
-            && $appt->getStatus() !== Appointment::STATUS_CANCELLED) {
+            && $appt->getStatus() !== Appointment::STATUS_CANCELLED
+            && $appt->getAppointmentDate() >= new \DateTime('today')) {
 
             // Optionally assign an employee if none was set and the owner picked one
             $empId = (int) $request->request->get('employee_id', 0);
@@ -284,7 +286,8 @@ class BusinessDashboardController extends AbstractController
         $appt = $repo->find($id);
 
         if (!$appt || !$org || $appt->getOrganization() !== $org
-            || $appt->getStatus() === Appointment::STATUS_CANCELLED) {
+            || $appt->getStatus() === Appointment::STATUS_CANCELLED
+            || $appt->getAppointmentDate() < new \DateTime('today')) {
             throw $this->createNotFoundException('Reservation not found.');
         }
 
@@ -300,9 +303,11 @@ class BusinessDashboardController extends AbstractController
             }
         }
 
-        // ── Duration ─────────────────────────────────────────────────────────
-        $minutes = (int) $request->request->get('duration_minutes', 0);
-        $appt->setDurationMinutes($minutes > 0 ? $minutes : null);
+        // ── Duration — only editable when no service is attached ─────────────
+        if ($appt->getService() === null) {
+            $minutes = (int) $request->request->get('duration_minutes', 0);
+            $appt->setDurationMinutes($minutes > 0 ? $minutes : null);
+        }
 
         $em->flush();
         $this->addFlash('success', $t->trans('flash.appointment_updated'));

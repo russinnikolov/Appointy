@@ -235,12 +235,13 @@ const MSG_VALIDATION   = {{ 'book.validation_msg'|trans|json_encode|raw }};
 const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
 const toStr = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
 
-let windowStart     = startOfToday();
-let selectedDate    = null;
-let selectedTime    = null;
-let selectedService = null;
-let busySlots       = [];
-let blockedRanges   = [];
+let windowStart            = startOfToday();
+let selectedDate           = null;
+let selectedTime           = null;
+let selectedService        = null;
+let selectedServiceDuration = null;
+let busySlots              = [];
+let blockedRanges          = [];
 
 function startOfToday() {
     const d = new Date(); d.setHours(0,0,0,0); return d;
@@ -340,8 +341,9 @@ function renderTimeGrid() {
     const lsMin = lunch.start ? toMin(lunch.start) : null;
     const leMin = lunch.end   ? toMin(lunch.end)   : null;
 
+    const slotStep = selectedServiceDuration || timeStep;
     let count = 0;
-    for (let t = openMin; t < closeMin; t += timeStep) {
+    for (let t = openMin; t < closeMin; t += slotStep) {
         if (lsMin !== null && t >= lsMin && t < leMin) continue;
         const ts = toStr(t);
         if (isUnavailable(ts)) continue;
@@ -376,13 +378,26 @@ function updateSubmitBtn() {
 }
 
 function selectService(id, btn) {
-    selectedService = id;
+    selectedService         = id;
+    selectedServiceDuration = parseInt(btn.dataset.duration, 10) || null;
     document.getElementById('selectedServiceId').value = id;
     document.querySelectorAll('.svc-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
-    // Re-filter services when employee might restrict what's shown — reset date/time
+
+    // Filter employees: only those who can perform this service
+    const forAll   = btn.dataset.forAll === '1';
+    const empIds   = btn.dataset.employeeIds
+        ? btn.dataset.employeeIds.split(',').map(Number).filter(Boolean)
+        : [];
+    filterEmployeesForService(forAll, empIds);
+
+    // Re-filter services when employee might restrict what's shown
     filterServicesForEmployee(getSelectedEmployeeId());
+    // Reset time — slot step may change with the new service duration
+    selectedTime = null;
+    document.getElementById('selectedTime').value = '';
     updateSubmitBtn();
+    if (selectedDate) renderTimeGrid();
 }
 
 function getSelectedEmployeeId() {
@@ -444,11 +459,36 @@ function filterServicesForEmployee(empId) {
         // Deselect hidden service
         if (!visible && btn.classList.contains('selected')) {
             btn.classList.remove('selected');
-            selectedService = null;
+            selectedService         = null;
+            selectedServiceDuration = null;
             document.getElementById('selectedServiceId').value = '';
+            selectedTime = null;
+            document.getElementById('selectedTime').value = '';
+            filterEmployeesForService(true, []); // restore all employees
             updateSubmitBtn();
         }
     });
+}
+
+function filterEmployeesForService(forAll, allowedIds) {
+    const sel = document.getElementById('employeeSelect');
+    if (!sel) return; // single-employee mode or no employee dropdown
+    const currentVal = sel.value;
+    let resetNeeded  = false;
+
+    Array.from(sel.options).forEach(opt => {
+        if (!opt.value) return; // skip the "any employee" placeholder
+        const eid     = parseInt(opt.value);
+        const allowed = forAll || allowedIds.includes(eid);
+        opt.disabled      = !allowed;
+        opt.style.display = allowed ? '' : 'none';
+        if (!allowed && opt.value === currentVal) resetNeeded = true;
+    });
+
+    if (resetNeeded) {
+        sel.value = '';
+        onEmployeeChange(); // update working hours / date / slot picker for "any"
+    }
 }
 
 async function onEmployeeChange() {
