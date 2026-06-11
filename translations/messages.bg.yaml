@@ -185,6 +185,10 @@ book.no_account_note: 'Не е необходим акаунт. Ще се свъ
 book.back_to_org: 'Назад към'
 book.back_to_orgs: 'Назад към организации'
 book.validation_msg: 'Моля изберете дата и час.'
+book.hint_select_date: 'Изберете дата за да продължите.'
+book.hint_select_time: 'Изберете час от списъка.'
+book.loading_slots: 'Зареждане на свободни часове…'
+book.add_to_google_calendar: 'Добави в Google Календар'
 
 # ── Business ──
 business.stats.pending: 'Изчакващи'

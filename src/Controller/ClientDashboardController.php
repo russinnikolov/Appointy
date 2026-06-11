@@ -44,7 +44,7 @@ class ClientDashboardController extends AbstractController
         ], $appointments);
 
         return $this->render('client/dashboard.html.twig', [
-            'appointments_json' => json_encode($apptData),
+            'appointments_json' => json_encode($apptData, JSON_HEX_TAG),
             'has_appointments'  => !empty($appointments),
         ]);
     }
@@ -196,7 +196,7 @@ class ClientDashboardController extends AbstractController
         $user = $this->getUser();
         $appt = $repo->find($id);
 
-        if ($appt && $appt->getClient() === $user && $appt->getStatus() === Appointment::STATUS_PENDING) {
+        if ($appt && $appt->getClient() === $user && $appt->getStatus() !== Appointment::STATUS_CANCELLED) {
             $note = trim($request->request->get('cancellation_note', ''));
             $appt->setStatus(Appointment::STATUS_CANCELLED)
                  ->setCancellationNote($note ?: null);

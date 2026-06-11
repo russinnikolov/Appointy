@@ -185,6 +185,10 @@ book.no_account_note: 'No account needed. We''ll contact you by phone to confirm
 book.back_to_org: 'Back to'
 book.back_to_orgs: 'Back to organizations'
 book.validation_msg: 'Please select a date and time.'
+book.hint_select_date: 'Select a date to continue.'
+book.hint_select_time: 'Now pick a time slot.'
+book.loading_slots: 'Loading available slots…'
+book.add_to_google_calendar: 'Add to Google Calendar'
 
 # ── Business ──
 business.stats.pending: 'Pending'

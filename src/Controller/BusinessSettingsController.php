@@ -93,14 +93,16 @@ class BusinessSettingsController extends AbstractController
 
             $logoFile = $request->files->get('logo');
             if ($logoFile && $logoFile->isValid()) {
-                $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/logos/';
-                $ext        = $logoFile->getClientOriginalExtension() ?: 'jpg';
-                $filename   = 'org-' . $org->getId() . '-' . uniqid() . '.' . $ext;
-                if ($org->getLogoFilename()) {
-                    @unlink($uploadsDir . $org->getLogoFilename());
+                $ext = strtolower($logoFile->guessExtension() ?? $logoFile->getClientOriginalExtension() ?? 'jpg');
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                    $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/logos/';
+                    $filename   = 'org-' . $org->getId() . '-' . uniqid() . '.' . $ext;
+                    if ($org->getLogoFilename()) {
+                        @unlink($uploadsDir . $org->getLogoFilename());
+                    }
+                    $logoFile->move($uploadsDir, $filename);
+                    $org->setLogoFilename($filename);
                 }
-                $logoFile->move($uploadsDir, $filename);
-                $org->setLogoFilename($filename);
             }
 
             $translator->translateOrg($org, $request->getLocale());

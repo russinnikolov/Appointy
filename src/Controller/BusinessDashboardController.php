@@ -71,12 +71,12 @@ class BusinessDashboardController extends AbstractController
 
         return $this->render('business/dashboard.html.twig', [
             'organization'       => $org,
-            'appointments_json'  => json_encode($apptData),
-            'blocked_json'       => json_encode($blockedData),
+            'appointments_json'  => json_encode($apptData, JSON_HEX_TAG),
+            'blocked_json'       => json_encode($blockedData, JSON_HEX_TAG),
             'counts'             => $repo->countByStatus($org),
             'employees'          => $activeEmployees,
             'org_capacity'       => count($activeEmployees),
-            'org_employees_json' => json_encode($employeesJs),
+            'org_employees_json' => json_encode($employeesJs, JSON_HEX_TAG),
         ]);
     }
 

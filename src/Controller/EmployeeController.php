@@ -116,12 +116,14 @@ class EmployeeController extends AbstractController
                 // Avatar upload (needs flush first so employee has an ID)
                 $avatarFile = $request->files->get('avatar');
                 if ($avatarFile && $avatarFile->isValid()) {
-                    $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars/';
-                    $ext        = $avatarFile->getClientOriginalExtension() ?: 'jpg';
-                    $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
-                    $avatarFile->move($uploadsDir, $filename);
-                    $employee->setAvatarFilename($filename);
-                    $em->flush();
+                    $ext = strtolower($avatarFile->guessExtension() ?? $avatarFile->getClientOriginalExtension() ?? 'jpg');
+                    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                        $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars/';
+                        $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
+                        $avatarFile->move($uploadsDir, $filename);
+                        $employee->setAvatarFilename($filename);
+                        $em->flush();
+                    }
                 }
 
                 $email = (new Email())
@@ -215,17 +217,19 @@ class EmployeeController extends AbstractController
                 // Avatar
                 $avatarFile = $request->files->get('avatar');
                 if ($avatarFile && $avatarFile->isValid()) {
-                    $uploadsDir = $projectDir . '/public/uploads/avatars/';
-                    $ext        = $avatarFile->getClientOriginalExtension() ?: 'jpg';
-                    $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
-                    if ($employee->getAvatarFilename()) {
-                        @unlink($uploadsDir . $employee->getAvatarFilename());
-                    }
-                    $avatarFile->move($uploadsDir, $filename);
-                    $employee->setAvatarFilename($filename);
-                    // Keep linked user's navbar avatar in sync
-                    if ($employee->getUser()) {
-                        $employee->getUser()->setAvatarFilename($filename);
+                    $ext = strtolower($avatarFile->guessExtension() ?? $avatarFile->getClientOriginalExtension() ?? 'jpg');
+                    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                        $uploadsDir = $projectDir . '/public/uploads/avatars/';
+                        $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
+                        if ($employee->getAvatarFilename()) {
+                            @unlink($uploadsDir . $employee->getAvatarFilename());
+                        }
+                        $avatarFile->move($uploadsDir, $filename);
+                        $employee->setAvatarFilename($filename);
+                        // Keep linked user's navbar avatar in sync
+                        if ($employee->getUser()) {
+                            $employee->getUser()->setAvatarFilename($filename);
+                        }
                     }
                 }
 
@@ -337,7 +341,8 @@ class EmployeeController extends AbstractController
         foreach ($files as $file) {
             if (count($current) >= 6) break;
             if (!$file || !$file->isValid()) continue;
-            $ext      = $file->getClientOriginalExtension() ?: 'jpg';
+            $ext = strtolower($file->guessExtension() ?? $file->getClientOriginalExtension() ?? 'jpg');
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) continue;
             $filename = 'portfolio_' . bin2hex(random_bytes(8)) . '.' . $ext;
             $file->move($uploadDir, $filename);
             $current[] = $filename;

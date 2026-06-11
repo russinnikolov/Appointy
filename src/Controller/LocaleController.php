@@ -24,7 +24,11 @@ class LocaleController extends AbstractController
             $em->flush();
         }
 
-        $referer = $request->headers->get('Referer', $this->generateUrl('home'));
+        $referer = $request->headers->get('Referer', '');
+        $origin  = $request->getSchemeAndHttpHost();
+        if (!$referer || !str_starts_with($referer, $origin)) {
+            $referer = $this->generateUrl('home');
+        }
         return $this->redirect($referer);
     }
 }

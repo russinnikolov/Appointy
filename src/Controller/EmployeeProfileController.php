@@ -88,17 +88,19 @@ class EmployeeProfileController extends AbstractController
 
                 $avatarFile = $request->files->get('avatar');
                 if ($avatarFile && $avatarFile->isValid()) {
-                    $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars/';
-                    $ext        = $avatarFile->getClientOriginalExtension() ?: 'jpg';
-                    $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
-                    // Delete old employee avatar if it differs from user avatar
-                    if ($employee->getAvatarFilename() && $employee->getAvatarFilename() !== $user->getAvatarFilename()) {
-                        @unlink($uploadsDir . $employee->getAvatarFilename());
+                    $ext = strtolower($avatarFile->guessExtension() ?? $avatarFile->getClientOriginalExtension() ?? 'jpg');
+                    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                        $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars/';
+                        $filename   = 'emp-' . $employee->getId() . '-' . uniqid() . '.' . $ext;
+                        // Delete old employee avatar if it differs from user avatar
+                        if ($employee->getAvatarFilename() && $employee->getAvatarFilename() !== $user->getAvatarFilename()) {
+                            @unlink($uploadsDir . $employee->getAvatarFilename());
+                        }
+                        $avatarFile->move($uploadsDir, $filename);
+                        $employee->setAvatarFilename($filename);
+                        // Keep navbar in sync
+                        $user->setAvatarFilename($filename);
                     }
-                    $avatarFile->move($uploadsDir, $filename);
-                    $employee->setAvatarFilename($filename);
-                    // Keep navbar in sync
-                    $user->setAvatarFilename($filename);
                 }
 
                 $em->flush();

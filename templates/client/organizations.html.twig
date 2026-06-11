@@ -64,7 +64,7 @@
                                 <i class="bi bi-building"></i>
                             </div>
                         {% endif %}
-                        <button class="fav-btn ms-auto"
+                        <button type="button" class="fav-btn ms-auto"
                                 data-org-id="{{ org.id }}"
                                 data-toggle-url="{{ path('client_favourite_toggle', {id: org.id}) }}"
                                 title="{{ org.id in favourite_ids ? 'fav.remove'|trans : 'fav.add'|trans }}">

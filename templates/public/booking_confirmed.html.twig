@@ -37,7 +37,25 @@
                 </div>
             </div>
 
-            <a href="{{ path('public_organizations') }}" class="btn btn-outline-primary">
+            {% set calDate    = appointment.appointmentDate|date('Ymd') %}
+            {% set calTime    = appointment.appointmentTime|date('Hi') %}
+            {% set dur        = appointment.durationMinutes ?? 60 %}
+            {% set startMins  = appointment.appointmentTime|date('G') * 60 + appointment.appointmentTime|date('i') %}
+            {% set endMins    = startMins + dur %}
+            {% set endH       = ((endMins / 60)|round(0, 'floor')) % 24 %}
+            {% set endM       = endMins % 60 %}
+            {% set endTime    = (endH < 10 ? '0' ~ endH : '' ~ endH) ~ (endM < 10 ? '0' ~ endM : '' ~ endM) %}
+            {% set calTitle   = ('public.booking_confirmed.booked'|trans) ~ ' — ' ~ (organization|localized('name')) %}
+            {% set calDetails = appointment.guestName %}
+            {% set calUrl     = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+                ~ '&text='    ~ calTitle|url_encode
+                ~ '&dates='   ~ calDate ~ 'T' ~ calTime ~ '00/' ~ calDate ~ 'T' ~ endTime ~ '00'
+                ~ '&details=' ~ calDetails|url_encode
+                ~ (organization.fullAddress ? ('&location=' ~ organization.fullAddress|url_encode) : '') %}
+            <a href="{{ calUrl }}" target="_blank" rel="noopener" class="btn btn-primary w-100 mb-2">
+                <i class="bi bi-calendar-plus me-1"></i>{{ 'book.add_to_google_calendar'|trans }}
+            </a>
+            <a href="{{ path('public_organizations') }}" class="btn btn-outline-secondary w-100">
                 <i class="bi bi-building me-1"></i>{{ 'public.booking_confirmed.browse'|trans }}
             </a>
         </div>

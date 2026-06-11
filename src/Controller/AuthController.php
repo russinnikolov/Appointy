@@ -48,10 +48,16 @@ class AuthController extends AbstractController
         }
 
         $type  = $request->query->get('type', User::TYPE_CLIENT);
+        if (!in_array($type, [User::TYPE_CLIENT, User::TYPE_BUSINESS], true)) {
+            $type = User::TYPE_CLIENT;
+        }
         $error = null;
 
         if ($request->isMethod('POST')) {
-            $type  = $request->request->get('type', User::TYPE_CLIENT);
+            $type = $request->request->get('type', User::TYPE_CLIENT);
+            if (!in_array($type, [User::TYPE_CLIENT, User::TYPE_BUSINESS], true)) {
+                $type = User::TYPE_CLIENT;
+            }
             $name  = trim($request->request->get('name', ''));
             $email = trim($request->request->get('email', ''));
             $pass  = $request->request->get('password', '');
