@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
+use App\Service\NotificationService;
 use App\Util\Base64ImageHandler;
 use App\Util\PhoneValidator;
 use Doctrine\ORM\EntityManagerInterface;
@@ -60,7 +61,8 @@ class ClientApiController extends AbstractController
         OrganizationRepository $orgRepo,
         EmployeeRepository $empRepo,
         AppointmentRepository $apptRepo,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        NotificationService $notifications
     ): JsonResponse {
         /** @var User $user */
         $user = $this->getUser();
@@ -106,6 +108,7 @@ class ClientApiController extends AbstractController
 
         $em->persist($appt);
         $em->flush();
+        $notifications->notifyNewReservation($appt);
 
         return new JsonResponse(['appointment' => $this->serializeAppt($appt)], 201);
     }
