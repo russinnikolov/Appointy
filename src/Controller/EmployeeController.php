@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Util\PhoneValidator;
 use App\Repository\EmployeeRepository;
 use App\Repository\UserRepository;
+use App\Service\SubscriptionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -47,7 +48,9 @@ class EmployeeController extends AbstractController
         UserPasswordHasherInterface $hasher,
         UserRepository $userRepo,
         MailerInterface $mailer,
-        TranslatorInterface $t
+        TranslatorInterface $t,
+        SubscriptionService $subscriptionService,
+        EmployeeRepository $employeeRepo
     ): Response {
         /** @var User $user */
         $user = $this->getUser();
@@ -82,6 +85,8 @@ class EmployeeController extends AbstractController
                 $error = 'This email is already registered.';
             } elseif (($lunchStart && !$lunchEnd) || (!$lunchStart && $lunchEnd)) {
                 $error = 'Please set both lunch break start and end, or leave both empty.';
+            } elseif (!$subscriptionService->canAddEmployee($org, $employeeRepo->count(['organization' => $org]))) {
+                $error = $t->trans('flash.employee_limit_reached');
             } else {
                 $tempPassword = bin2hex(random_bytes(8));
 
