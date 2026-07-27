@@ -60,11 +60,23 @@ class StripeService
         $customerId = $this->ensureCustomer($subscription);
 
         return $this->stripe->checkout->sessions->create([
-            'mode'        => 'setup',
-            'customer'    => $customerId,
-            'success_url' => $successUrl,
-            'cancel_url'  => $cancelUrl,
+            'mode'                 => 'setup',
+            'customer'             => $customerId,
+            // Apple Pay / Google Pay ride along automatically under 'card'; PayPal must
+            // also be enabled for "recurring payments" on the Stripe account (Dashboard)
+            // before a saved PayPal method can actually be charged off-session later.
+            'payment_method_types' => ['card', 'paypal'],
+            'success_url'          => $successUrl,
+            'cancel_url'           => $cancelUrl,
         ]);
+    }
+
+    /** Resolves the PaymentMethod a completed SetupIntent confirmed, so it can be stored for explicit off-session reuse. */
+    public function resolveSetupPaymentMethod(string $setupIntentId): ?string
+    {
+        $setupIntent = $this->stripe->setupIntents->retrieve($setupIntentId);
+
+        return $setupIntent->payment_method ?: null;
     }
 
     /** Whether the organization already has a payment method on file (no Checkout round-trip needed to change plans). */
@@ -89,14 +101,22 @@ class StripeService
             return; // no payment method on file yet; invoice stays pending until the owner subscribes/pays manually
         }
 
-        $paymentIntent = $this->stripe->paymentIntents->create([
-            'amount'   => $invoice->getAmountDueCents(),
-            'currency' => strtolower($invoice->getCurrency()),
-            'customer' => $customerId,
+        $params = [
+            'amount'      => $invoice->getAmountDueCents(),
+            'currency'    => strtolower($invoice->getCurrency()),
+            'customer'    => $customerId,
             'off_session' => true,
-            'confirm'  => true,
-            'metadata' => ['invoice_id' => (string) $invoice->getId()],
-        ]);
+            'confirm'     => true,
+            'metadata'    => ['invoice_id' => (string) $invoice->getId()],
+        ];
+
+        // Reference the exact saved PaymentMethod rather than relying on the customer's
+        // "default" one — Stripe does not reliably resolve a default for PayPal.
+        if ($subscription->getStripePaymentMethodId()) {
+            $params['payment_method'] = $subscription->getStripePaymentMethodId();
+        }
+
+        $paymentIntent = $this->stripe->paymentIntents->create($params);
 
         $invoice->setStripePaymentIntentId($paymentIntent->id);
     }

@@ -31,7 +31,7 @@ class StripeWebhookController extends AbstractController
         }
 
         match ($event->type) {
-            'checkout.session.completed' => $this->handleCheckoutCompleted($event, $subRepo, $em),
+            'checkout.session.completed' => $this->handleCheckoutCompleted($event, $stripe, $subRepo, $em),
             'invoice.payment_succeeded', 'payment_intent.succeeded' => $this->handlePaymentSucceeded($event, $invoiceRepo, $em),
             default => null,
         };
@@ -40,7 +40,7 @@ class StripeWebhookController extends AbstractController
     }
 
     /** Every Checkout Session is 'setup' mode (see StripeService) — this just confirms a payment method was saved. */
-    private function handleCheckoutCompleted($event, SubscriptionRepository $subRepo, EntityManagerInterface $em): void
+    private function handleCheckoutCompleted($event, StripeService $stripe, SubscriptionRepository $subRepo, EntityManagerInterface $em): void
     {
         $session     = $event->data->object;
         $customerId  = $session->customer;
@@ -52,6 +52,17 @@ class StripeWebhookController extends AbstractController
 
         if (!$subscription) {
             return;
+        }
+
+        if (!empty($session->setup_intent)) {
+            try {
+                $paymentMethodId = $stripe->resolveSetupPaymentMethod($session->setup_intent);
+                if ($paymentMethodId) {
+                    $subscription->setStripePaymentMethodId($paymentMethodId);
+                }
+            } catch (\Throwable) {
+                // non-fatal — chargeInvoice() falls back to the customer's default payment method
+            }
         }
 
         if ($subscription->getStatus() !== Subscription::STATUS_TRIALING) {
