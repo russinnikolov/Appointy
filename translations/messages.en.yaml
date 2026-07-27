@@ -622,3 +622,4 @@ settings.plan.description.pay_per_reservation: 'No monthly fee — 2€ per conf
 settings.plan.description.small_business:      '50€/month — up to 5 employees, unlimited reservations.'
 settings.plan.description.medium_business:     '100€/month — up to 15 employees, unlimited reservations.'
 settings.plan.description.enterprise:          '500€/month — up to 50 employees, +20€/month per extra employee.'
+settings.plan.accepted_methods: 'We accept card, Apple Pay, Google Pay and PayPal.'

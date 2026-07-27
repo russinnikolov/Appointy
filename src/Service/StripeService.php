@@ -15,6 +15,12 @@ use Stripe\Webhook;
  * Thin wrapper around the Stripe SDK — the single point of contact with Stripe's API.
  * Stripe Price IDs for the 3 flat-fee plans are read from env vars since there is no
  * admin UI to manage them; the pay-per-reservation plan has no fixed Price (variable amount).
+ *
+ * Payment methods: Apple Pay and Google Pay ride along automatically under the 'card'
+ * payment method type in Stripe Checkout — no extra code is needed, only Dashboard
+ * toggles (Apple Pay is on by default; Google Pay must be enabled explicitly). PayPal
+ * is requested explicitly below and must also be enabled for the Stripe account in the
+ * Dashboard (Settings → Payment methods) before it will actually appear at checkout.
  */
 class StripeService
 {
@@ -64,11 +70,14 @@ class StripeService
         $priceId = $this->priceIdForPlan($plan);
 
         return $this->stripe->checkout->sessions->create([
-            'mode'        => 'subscription',
-            'customer'    => $customerId,
-            'line_items'  => [['price' => $priceId, 'quantity' => 1]],
-            'success_url' => $successUrl,
-            'cancel_url'  => $cancelUrl,
+            'mode'                 => 'subscription',
+            'customer'             => $customerId,
+            'line_items'           => [['price' => $priceId, 'quantity' => 1]],
+            // Apple Pay / Google Pay are offered automatically under 'card'; 'paypal'
+            // is opted into explicitly since Stripe does not enable it by default.
+            'payment_method_types' => ['card', 'paypal'],
+            'success_url'          => $successUrl,
+            'cancel_url'           => $cancelUrl,
         ]);
     }
 
