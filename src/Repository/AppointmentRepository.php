@@ -298,6 +298,23 @@ class AppointmentRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** Count of CONFIRMED appointments for an org within a date range (inclusive) — used for pay-per-reservation billing. */
+    public function countConfirmedForOrganizationBetween(Organization $org, \DateTimeInterface $periodStart, \DateTimeInterface $periodEnd): int
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->andWhere('a.organization = :org')
+            ->andWhere('a.status = :confirmed')
+            ->andWhere('a.appointmentDate >= :start')
+            ->andWhere('a.appointmentDate <= :end')
+            ->setParameter('org', $org)
+            ->setParameter('confirmed', Appointment::STATUS_CONFIRMED)
+            ->setParameter('start', $periodStart->format('Y-m-d'))
+            ->setParameter('end', $periodEnd->format('Y-m-d'))
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /** @return array{pending: int, confirmed: int, cancelled: int} */
     public function countByStatus(Organization $org): array
     {

@@ -3,7 +3,9 @@
 namespace App\Controller;
 
 use App\Entity\Organization;
+use App\Entity\Subscription;
 use App\Entity\User;
+use App\Enum\PlanCode;
 use App\Repository\UserRepository;
 use App\Service\TranslationApiService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -122,6 +124,14 @@ class AuthController extends AbstractController
                     $translator->translateOrg($org, $request->getLocale());
                     $em->persist($org);
                     $user->setOrganization($org);
+
+                    $subscription = new Subscription();
+                    $subscription->setOrganization($org)
+                        ->setPlan(PlanCode::PAY_PER_RESERVATION)
+                        ->setStatus(Subscription::STATUS_TRIALING)
+                        ->setTrialEndsAt(new \DateTimeImmutable('+1 month'));
+                    $org->setSubscription($subscription);
+                    $em->persist($subscription);
                 }
 
                 $em->persist($user);

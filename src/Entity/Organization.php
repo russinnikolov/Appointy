@@ -100,6 +100,9 @@ class Organization
     #[ORM\JoinTable(name: 'org_trusted_client')]
     private Collection $trustedClients;
 
+    #[ORM\OneToOne(mappedBy: 'organization', targetEntity: Subscription::class, orphanRemoval: true)]
+    private ?Subscription $subscription = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -280,4 +283,7 @@ class Organization
     {
         return $this->trustedClients->contains($user);
     }
+
+    public function getSubscription(): ?Subscription { return $this->subscription; }
+    public function setSubscription(?Subscription $v): static { $this->subscription = $v; return $this; }
 }

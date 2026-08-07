@@ -9,6 +9,7 @@ use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
 use App\Repository\ServiceRepository;
+use App\Service\SubscriptionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -61,7 +62,8 @@ class PublicController extends AbstractController
         AppointmentRepository $apptRepo,
         ServiceRepository $svcRepo,
         EntityManagerInterface $em,
-        TranslatorInterface $t
+        TranslatorInterface $t,
+        SubscriptionService $subscriptionService
     ): Response {
         // Logged-in clients use their own richer booking flow
         if ($this->isGranted('ROLE_CLIENT')) {
@@ -71,6 +73,15 @@ class PublicController extends AbstractController
         $org = $orgRepo->find($id);
         if (!$org) {
             throw $this->createNotFoundException('Organization not found.');
+        }
+
+        if (!$subscriptionService->canAcceptReservations($org)) {
+            return $this->render('public/book_org.html.twig', [
+                'organization' => $org,
+                'employees'    => [],
+                'services'     => [],
+                'error'        => $t->trans('book.error.org_unavailable'),
+            ], new Response('', 403));
         }
 
         $employees   = $empRepo->findActiveByOrganization($org);
@@ -220,13 +231,23 @@ class PublicController extends AbstractController
         AppointmentRepository $apptRepo,
         ServiceRepository $svcRepo,
         EntityManagerInterface $em,
-        TranslatorInterface $t
+        TranslatorInterface $t,
+        SubscriptionService $subscriptionService
     ): Response {
         $org      = $orgRepo->find($orgId);
         $employee = $empRepo->find($employeeId);
 
         if (!$org || !$employee || $employee->getOrganization() !== $org) {
             throw $this->createNotFoundException('Organization or employee not found.');
+        }
+
+        if (!$subscriptionService->canAcceptReservations($org)) {
+            return $this->render('public/book.html.twig', [
+                'organization' => $org,
+                'employee'     => $employee,
+                'services'     => [],
+                'error'        => $t->trans('book.error.org_unavailable'),
+            ], new Response('', 403));
         }
 
         $services = $svcRepo->findActiveForEmployee($employee);

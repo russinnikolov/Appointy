@@ -24,5 +24,13 @@ services:
             $libreTranslateUrl:    '%env(LIBRETRANSLATE_URL)%'
             $libreTranslateApiKey: '%env(string:LIBRETRANSLATE_API_KEY)%'
 
+    Stripe\StripeClient:
+        arguments:
+            $config: '%env(string:STRIPE_SECRET_KEY)%'
+
+    App\Service\StripeService:
+        arguments:
+            $webhookSecret: '%env(string:STRIPE_WEBHOOK_SECRET)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

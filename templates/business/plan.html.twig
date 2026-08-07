@@ -1,0 +1,106 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'settings.plan.title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ path('business_dashboard') }}" class="btn btn-link text-muted ps-0">
+        <i class="bi bi-arrow-left me-1"></i>{{ 'nav.dashboard'|trans }}
+    </a>
+    <h5 class="fw-bold mb-0">{{ 'settings.plan.title'|trans }}</h5>
+</div>
+
+{% for msg in app.flashes('success') %}
+    <div class="alert alert-success py-2 small mb-3"><i class="bi bi-check-circle me-1"></i>{{ msg }}</div>
+{% endfor %}
+{% for msg in app.flashes('danger') %}
+    <div class="alert alert-danger py-2 small mb-3"><i class="bi bi-exclamation-circle me-1"></i>{{ msg }}</div>
+{% endfor %}
+{% if app.request.query.get('checkout') == 'success' %}
+    <div class="alert alert-success py-2 small mb-3"><i class="bi bi-check-circle me-1"></i>{{ 'settings.plan.checkout_success'|trans }}</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card p-4">
+            <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'settings.plan.current'|trans }}</p>
+
+            {% if subscription %}
+                <p class="mb-2">
+                    <span class="badge {{ subscription.status == 'active' ? 'bg-success' : (subscription.status in ['past_due', 'suspended'] ? 'bg-danger' : (subscription.status == 'trialing' ? 'bg-info' : 'bg-secondary')) }}">
+                        {{ ('settings.plan.status.' ~ subscription.status)|trans }}
+                    </span>
+                    <span class="ms-2 fw-semibold">{{ ('settings.plan.name.' ~ subscription.plan.value)|trans }}</span>
+                </p>
+
+                {% if subscription.isTrialing %}
+                    <p class="text-muted small mb-2">
+                        {{ 'settings.plan.trial_ends'|trans({'%date%': subscription.trialEndsAt|date('d.m.Y')}) }}
+                    </p>
+                {% endif %}
+
+                <p class="text-muted small mb-0">
+                    {{ 'settings.plan.employees_used'|trans({'%count%': organization.employees|length}) }}
+                </p>
+            {% else %}
+                <p class="text-muted small mb-0">{{ 'settings.plan.no_subscription'|trans }}</p>
+            {% endif %}
+        </div>
+
+        <div class="card p-4 mt-4">
+            <p class="fw-semibold small text-uppercase text-muted mb-3">{{ 'settings.plan.invoices'|trans }}</p>
+            {% if recentInvoices|length %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ 'settings.plan.period'|trans }}</th>
+                                <th>{{ 'settings.plan.amount'|trans }}</th>
+                                <th>{{ 'settings.plan.due_date'|trans }}</th>
+                                <th>{{ 'common.status'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in recentInvoices %}
+                                <tr>
+                                    <td>{{ invoice.periodStart|date('d.m.Y') }} – {{ invoice.periodEnd|date('d.m.Y') }}</td>
+                                    <td>{{ (invoice.amountDueCents / 100)|number_format(2) }} {{ invoice.currency }}</td>
+                                    <td>{{ invoice.dueDate|date('d.m.Y') }}</td>
+                                    <td>
+                                        <span class="badge {{ invoice.status == 'paid' ? 'bg-success' : (invoice.status == 'overdue' ? 'bg-danger' : 'bg-warning text-dark') }}">
+                                            {{ ('settings.plan.invoice_status.' ~ invoice.status)|trans }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted small mb-0">{{ 'settings.plan.no_invoices'|trans }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="row g-3">
+            {% for plan in plans %}
+                <div class="col-md-6">
+                    <div class="card p-3 h-100 {{ subscription and subscription.plan == plan ? 'border-primary' : '' }}">
+                        <p class="fw-semibold mb-1">{{ ('settings.plan.name.' ~ plan.value)|trans }}</p>
+                        <p class="text-muted small mb-3">{{ ('settings.plan.description.' ~ plan.value)|trans }}</p>
+                        <form method="post" action="{{ path('business_plan_select', {plan: plan.value}) }}">
+                            <button type="submit" class="btn {{ subscription and subscription.plan == plan ? 'btn-primary' : 'btn-outline-primary' }} btn-sm w-100"
+                                    {{ subscription and subscription.plan == plan and subscription.status == 'active' ? 'disabled' : '' }}>
+                                {{ subscription and subscription.plan == plan and subscription.status == 'active' ? 'settings.plan.current_plan'|trans : 'settings.plan.choose'|trans }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <p class="text-muted small mt-3 mb-0">
+            <i class="bi bi-shield-check me-1"></i>{{ 'settings.plan.accepted_methods'|trans }}
+        </p>
+    </div>
+</div>
+{% endblock %}
