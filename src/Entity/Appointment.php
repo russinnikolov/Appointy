@@ -63,6 +63,13 @@ class Appointment
     #[ORM\Column(nullable: true)]
     private ?int $durationMinutes = null;
 
+    /** Chat + message the "new reservation" Telegram notification was sent to, so its buttons can be finalized after a decision. */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $telegramNotifiedChatId = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $telegramNotifiedMessageId = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -132,6 +139,12 @@ class Appointment
 
     public function getDurationMinutes(): ?int { return $this->durationMinutes; }
     public function setDurationMinutes(?int $v): static { $this->durationMinutes = $v; return $this; }
+
+    public function getTelegramNotifiedChatId(): ?string { return $this->telegramNotifiedChatId; }
+    public function setTelegramNotifiedChatId(?string $v): static { $this->telegramNotifiedChatId = $v; return $this; }
+
+    public function getTelegramNotifiedMessageId(): ?string { return $this->telegramNotifiedMessageId; }
+    public function setTelegramNotifiedMessageId(?string $v): static { $this->telegramNotifiedMessageId = $v; return $this; }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }

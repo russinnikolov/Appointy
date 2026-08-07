@@ -38,6 +38,7 @@ security:
 
     access_control:
         - { path: ^/webhooks/stripe,                 roles: PUBLIC_ACCESS }
+        - { path: ^/webhooks/telegram,               roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/auth,                    roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/organizations,            roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/busy-slots,               roles: PUBLIC_ACCESS }

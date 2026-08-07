@@ -10,6 +10,7 @@ use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
 use App\Repository\ServiceRepository;
 use App\Service\SubscriptionService;
+use App\Service\NotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -64,6 +65,7 @@ class PublicController extends AbstractController
         EntityManagerInterface $em,
         TranslatorInterface $t,
         SubscriptionService $subscriptionService
+        NotificationService $notifications
     ): Response {
         // Logged-in clients use their own richer booking flow
         if ($this->isGranted('ROLE_CLIENT')) {
@@ -175,6 +177,7 @@ class PublicController extends AbstractController
 
             $em->persist($appt);
             $em->flush();
+            $notifications->notifyNewReservation($appt);
 
             return $this->render('public/booking_confirmed.html.twig', [
                 'appointment'  => $appt,
@@ -233,6 +236,7 @@ class PublicController extends AbstractController
         EntityManagerInterface $em,
         TranslatorInterface $t,
         SubscriptionService $subscriptionService
+        NotificationService $notifications
     ): Response {
         $org      = $orgRepo->find($orgId);
         $employee = $empRepo->find($employeeId);
@@ -330,6 +334,7 @@ class PublicController extends AbstractController
 
             $em->persist($appt);
             $em->flush();
+            $notifications->notifyNewReservation($appt);
 
             return $this->render('public/booking_confirmed.html.twig', [
                 'appointment'  => $appt,

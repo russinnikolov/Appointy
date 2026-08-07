@@ -60,11 +60,11 @@ class StripeService
         $customerId = $this->ensureCustomer($subscription);
 
         return $this->stripe->checkout->sessions->create([
-            'mode'                 => 'setup',
+            'mode'                 => 'subscription',
             'customer'             => $customerId,
-            // Apple Pay / Google Pay ride along automatically under 'card'; PayPal must
-            // also be enabled for "recurring payments" on the Stripe account (Dashboard)
-            // before a saved PayPal method can actually be charged off-session later.
+            'line_items'           => [['price' => $priceId, 'quantity' => 1]],
+            // Apple Pay / Google Pay are offered automatically under 'card'; 'paypal'
+            // is opted into explicitly since Stripe does not enable it by default.
             'payment_method_types' => ['card', 'paypal'],
             'success_url'          => $successUrl,
             'cancel_url'           => $cancelUrl,

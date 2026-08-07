@@ -8,6 +8,7 @@ use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
 use App\Service\SubscriptionService;
+use App\Service\NotificationService;
 use App\Util\PhoneValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
@@ -91,6 +92,7 @@ class PublicApiController extends AbstractController
         AppointmentRepository $apptRepo,
         EntityManagerInterface $em,
         SubscriptionService $subscriptionService
+        NotificationService $notifications
     ): JsonResponse {
         $org      = $orgRepo->find($orgId);
         $employee = $empRepo->find($employeeId);
@@ -146,6 +148,7 @@ class PublicApiController extends AbstractController
 
         $em->persist($appt);
         $em->flush();
+        $notifications->notifyNewReservation($appt);
 
         return new JsonResponse(['appointment' => $this->serializeAppt($appt)], 201);
     }
