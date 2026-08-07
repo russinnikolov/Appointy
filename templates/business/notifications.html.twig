@@ -1,0 +1,66 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'settings.notifications.title'|trans }} — {{ organization.name }}{% endblock %}
+
+{% block body %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ path('business_dashboard') }}" class="btn btn-link text-muted ps-0">
+        <i class="bi bi-arrow-left me-1"></i>{{ 'nav.dashboard'|trans }}
+    </a>
+    <h5 class="fw-bold mb-0">{{ 'settings.notifications.title'|trans }}</h5>
+</div>
+
+{% for msg in app.flashes('success') %}
+    <div class="alert alert-success py-2 small mb-3"><i class="bi bi-check-circle me-1"></i>{{ msg }}</div>
+{% endfor %}
+
+<p class="text-muted small mb-4">{{ 'settings.notifications.intro'|trans }}</p>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card p-3 h-100">
+            <p class="fw-semibold mb-1"><i class="bi bi-telegram me-2"></i>Telegram</p>
+
+            {% if telegram and telegram.connected %}
+                <p class="text-success small mb-3"><i class="bi bi-check-circle me-1"></i>{{ 'settings.notifications.connected'|trans }}</p>
+                <form method="post" action="{{ path('business_notifications_telegram_disconnect') }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">{{ 'settings.notifications.disconnect'|trans }}</button>
+                </form>
+            {% elseif telegramLink %}
+                <p class="text-muted small mb-3">{{ 'settings.notifications.pending_link'|trans }}</p>
+                <a href="{{ telegramLink }}" target="_blank" class="btn btn-primary btn-sm mb-2">
+                    <i class="bi bi-telegram me-1"></i>{{ 'settings.notifications.open_telegram'|trans }}
+                </a>
+                <form method="post" action="{{ path('business_notifications_telegram_connect') }}">
+                    <button type="submit" class="btn btn-link btn-sm p-0">{{ 'settings.notifications.regenerate_link'|trans }}</button>
+                </form>
+            {% else %}
+                <p class="text-muted small mb-3">{{ 'settings.notifications.not_connected'|trans }}</p>
+                <form method="post" action="{{ path('business_notifications_telegram_connect') }}">
+                    <button type="submit" class="btn btn-primary btn-sm">{{ 'settings.notifications.connect'|trans }}</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card p-3 h-100 bg-light">
+            <p class="fw-semibold mb-1 text-muted"><i class="bi bi-whatsapp me-2"></i>WhatsApp</p>
+            <p class="text-muted small mb-0">{{ 'settings.notifications.coming_soon'|trans }}</p>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card p-3 h-100 bg-light">
+            <p class="fw-semibold mb-1 text-muted"><i class="bi bi-chat-dots me-2"></i>Viber</p>
+            <p class="text-muted small mb-0">{{ 'settings.notifications.coming_soon'|trans }}</p>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card p-3 h-100 bg-light">
+            <p class="fw-semibold mb-1 text-muted"><i class="bi bi-chat-text me-2"></i>SMS</p>
+            <p class="text-muted small mb-0">{{ 'settings.notifications.coming_soon'|trans }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

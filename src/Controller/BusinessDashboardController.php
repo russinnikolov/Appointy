@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Repository\AppointmentRepository;
 use App\Repository\BlockedPeriodRepository;
 use App\Repository\EmployeeRepository;
+use App\Service\AppointmentDecisionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -86,7 +87,7 @@ class BusinessDashboardController extends AbstractController
         Request $request,
         AppointmentRepository $repo,
         EmployeeRepository $empRepo,
-        EntityManagerInterface $em,
+        AppointmentDecisionService $decisions,
         TranslatorInterface $t
     ): Response {
         /** @var User $user */
@@ -99,43 +100,21 @@ class BusinessDashboardController extends AbstractController
             return $this->redirectToRoute('business_dashboard');
         }
 
-        // Capacity = number of active employees in this org
-        $capacity       = $empRepo->count(['organization' => $org, 'isActive' => true]);
-        $confirmedCount = $repo->countConfirmedAtSlot($org, $appt->getAppointmentDate(), $appt->getAppointmentTime());
+        // Optionally assign an employee if none was set and the owner picked one
+        $empId  = (int) $request->request->get('employee_id', 0);
+        $emp    = null;
+        if ($empId) {
+            $candidate = $empRepo->find($empId);
+            if ($candidate && $candidate->getOrganization() === $org && $candidate->isActive()) {
+                $emp = $candidate;
+            }
+        }
 
-        // Guard: slot already full (should not happen via normal UI)
-        if ($capacity > 0 && $confirmedCount >= $capacity) {
+        if (!$decisions->confirm($appt, $emp)) {
             $this->addFlash('danger', $t->trans('flash.slot_full'));
             return $this->redirectToRoute('business_dashboard');
         }
 
-        // Optionally assign an employee if none was set and the owner picked one
-        $empId = (int) $request->request->get('employee_id', 0);
-        if ($empId && $appt->getEmployee() === null) {
-            $emp = $empRepo->find($empId);
-            if ($emp && $emp->getOrganization() === $org && $emp->isActive()) {
-                $appt->setEmployee($emp);
-            }
-        }
-
-        $appt->setStatus(Appointment::STATUS_CONFIRMED);
-
-        // When this confirmation fills the last available slot, cancel every other
-        // pending appointment at the same date+time for this organisation.
-        if ($capacity > 0 && $confirmedCount + 1 >= $capacity) {
-            $others = $repo->findPendingAtSlot(
-                $org,
-                $appt->getAppointmentDate(),
-                $appt->getAppointmentTime(),
-                $appt->getId()
-            );
-            foreach ($others as $other) {
-                $other->setStatus(Appointment::STATUS_CANCELLED)
-                      ->setCancellationNote($t->trans('flash.cancelled_capacity'));
-            }
-        }
-
-        $em->flush();
         $this->addFlash('success', $t->trans('flash.appointment_confirmed'));
 
         $redirectTo = $request->request->get('redirect_to', '');
@@ -149,8 +128,14 @@ class BusinessDashboardController extends AbstractController
     }
 
     #[Route('/cancel/{id}', name: 'business_cancel', methods: ['POST'])]
-    public function cancel(int $id, Request $request, AppointmentRepository $repo, EmployeeRepository $empRepo, EntityManagerInterface $em, TranslatorInterface $t): Response
-    {
+    public function cancel(
+        int $id,
+        Request $request,
+        AppointmentRepository $repo,
+        EmployeeRepository $empRepo,
+        AppointmentDecisionService $decisions,
+        TranslatorInterface $t
+    ): Response {
         /** @var User $user */
         $user = $this->getUser();
         $org  = $user->getOrganization();
@@ -162,17 +147,16 @@ class BusinessDashboardController extends AbstractController
 
             // Optionally assign an employee if none was set and the owner picked one
             $empId = (int) $request->request->get('employee_id', 0);
-            if ($empId && $appt->getEmployee() === null) {
-                $emp = $empRepo->find($empId);
-                if ($emp && $emp->getOrganization() === $org && $emp->isActive()) {
-                    $appt->setEmployee($emp);
+            $emp   = null;
+            if ($empId) {
+                $candidate = $empRepo->find($empId);
+                if ($candidate && $candidate->getOrganization() === $org && $candidate->isActive()) {
+                    $emp = $candidate;
                 }
             }
 
             $note = trim($request->request->get('cancellation_note', ''));
-            $appt->setStatus(Appointment::STATUS_CANCELLED)
-                 ->setCancellationNote($note ?: null);
-            $em->flush();
+            $decisions->cancel($appt, $note ?: null, $emp);
             $this->addFlash('success', $t->trans('flash.appointment_cancelled'));
 
             $redirectTo = $request->request->get('redirect_to', '');
