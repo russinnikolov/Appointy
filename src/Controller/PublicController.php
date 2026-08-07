@@ -9,6 +9,7 @@ use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
 use App\Repository\ServiceRepository;
+use App\Service\SubscriptionService;
 use App\Service\NotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -63,6 +64,7 @@ class PublicController extends AbstractController
         ServiceRepository $svcRepo,
         EntityManagerInterface $em,
         TranslatorInterface $t,
+        SubscriptionService $subscriptionService
         NotificationService $notifications
     ): Response {
         // Logged-in clients use their own richer booking flow
@@ -73,6 +75,15 @@ class PublicController extends AbstractController
         $org = $orgRepo->find($id);
         if (!$org) {
             throw $this->createNotFoundException('Organization not found.');
+        }
+
+        if (!$subscriptionService->canAcceptReservations($org)) {
+            return $this->render('public/book_org.html.twig', [
+                'organization' => $org,
+                'employees'    => [],
+                'services'     => [],
+                'error'        => $t->trans('book.error.org_unavailable'),
+            ], new Response('', 403));
         }
 
         $employees   = $empRepo->findActiveByOrganization($org);
@@ -224,6 +235,7 @@ class PublicController extends AbstractController
         ServiceRepository $svcRepo,
         EntityManagerInterface $em,
         TranslatorInterface $t,
+        SubscriptionService $subscriptionService
         NotificationService $notifications
     ): Response {
         $org      = $orgRepo->find($orgId);
@@ -231,6 +243,15 @@ class PublicController extends AbstractController
 
         if (!$org || !$employee || $employee->getOrganization() !== $org) {
             throw $this->createNotFoundException('Organization or employee not found.');
+        }
+
+        if (!$subscriptionService->canAcceptReservations($org)) {
+            return $this->render('public/book.html.twig', [
+                'organization' => $org,
+                'employee'     => $employee,
+                'services'     => [],
+                'error'        => $t->trans('book.error.org_unavailable'),
+            ], new Response('', 403));
         }
 
         $services = $svcRepo->findActiveForEmployee($employee);

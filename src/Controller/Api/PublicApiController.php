@@ -7,6 +7,7 @@ use App\Entity\Organization;
 use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
+use App\Service\SubscriptionService;
 use App\Service\NotificationService;
 use App\Util\PhoneValidator;
 use Doctrine\ORM\EntityManagerInterface;
@@ -90,6 +91,7 @@ class PublicApiController extends AbstractController
         EmployeeRepository $empRepo,
         AppointmentRepository $apptRepo,
         EntityManagerInterface $em,
+        SubscriptionService $subscriptionService
         NotificationService $notifications
     ): JsonResponse {
         $org      = $orgRepo->find($orgId);
@@ -97,6 +99,10 @@ class PublicApiController extends AbstractController
 
         if (!$org || !$employee || $employee->getOrganization() !== $org) {
             return new JsonResponse(['error' => 'Organization or employee not found.'], 404);
+        }
+
+        if (!$subscriptionService->canAcceptReservations($org)) {
+            return new JsonResponse(['error' => 'This business is not currently accepting reservations.'], 403);
         }
 
         $body       = json_decode($request->getContent(), true) ?? [];

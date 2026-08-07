@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Repository\AppointmentRepository;
 use App\Repository\EmployeeRepository;
 use App\Repository\OrganizationRepository;
+use App\Service\SubscriptionService;
 use App\Service\NotificationService;
 use App\Util\Base64ImageHandler;
 use App\Util\PhoneValidator;
@@ -62,6 +63,7 @@ class ClientApiController extends AbstractController
         EmployeeRepository $empRepo,
         AppointmentRepository $apptRepo,
         EntityManagerInterface $em,
+        SubscriptionService $subscriptionService
         NotificationService $notifications
     ): JsonResponse {
         /** @var User $user */
@@ -76,6 +78,10 @@ class ClientApiController extends AbstractController
 
         $org = $orgRepo->find($orgId);
         if (!$org) { return $this->error('Organization not found.', 404); }
+
+        if (!$subscriptionService->canAcceptReservations($org)) {
+            return $this->error('This business is not currently accepting reservations.', 403);
+        }
 
         $employee = null;
         if ($employeeId) {
