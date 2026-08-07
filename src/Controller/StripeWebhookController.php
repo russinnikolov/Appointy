@@ -4,7 +4,6 @@ namespace App\Controller;
 
 use App\Entity\Invoice;
 use App\Entity\Subscription;
-use App\Enum\PlanCode;
 use App\Repository\InvoiceRepository;
 use App\Repository\SubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,16 +31,16 @@ class StripeWebhookController extends AbstractController
         }
 
         match ($event->type) {
-            'checkout.session.completed' => $this->handleCheckoutCompleted($event, $subRepo, $em),
+            'checkout.session.completed' => $this->handleCheckoutCompleted($event, $stripe, $subRepo, $em),
             'invoice.payment_succeeded', 'payment_intent.succeeded' => $this->handlePaymentSucceeded($event, $invoiceRepo, $em),
-            'customer.subscription.deleted' => $this->handleSubscriptionDeleted($event, $subRepo, $em),
             default => null,
         };
 
         return new Response('', 200);
     }
 
-    private function handleCheckoutCompleted($event, SubscriptionRepository $subRepo, EntityManagerInterface $em): void
+    /** Every Checkout Session is 'setup' mode (see StripeService) — this just confirms a payment method was saved. */
+    private function handleCheckoutCompleted($event, StripeService $stripe, SubscriptionRepository $subRepo, EntityManagerInterface $em): void
     {
         $session     = $event->data->object;
         $customerId  = $session->customer;
@@ -55,9 +54,17 @@ class StripeWebhookController extends AbstractController
             return;
         }
 
-        if ($session->subscription) {
-            $subscription->setStripeSubscriptionId($session->subscription);
+        if (!empty($session->setup_intent)) {
+            try {
+                $paymentMethodId = $stripe->resolveSetupPaymentMethod($session->setup_intent);
+                if ($paymentMethodId) {
+                    $subscription->setStripePaymentMethodId($paymentMethodId);
+                }
+            } catch (\Throwable) {
+                // non-fatal — chargeInvoice() falls back to the customer's default payment method
+            }
         }
+
         if ($subscription->getStatus() !== Subscription::STATUS_TRIALING) {
             $subscription->setStatus(Subscription::STATUS_ACTIVE);
         }
@@ -87,19 +94,6 @@ class StripeWebhookController extends AbstractController
             $subscription->setStatus(Subscription::STATUS_ACTIVE);
         }
 
-        $em->flush();
-    }
-
-    private function handleSubscriptionDeleted($event, SubscriptionRepository $subRepo, EntityManagerInterface $em): void
-    {
-        $stripeSubId  = $event->data->object->id;
-        $subscription = $subRepo->findOneBy(['stripeSubscriptionId' => $stripeSubId]);
-
-        if (!$subscription) {
-            return;
-        }
-
-        $subscription->setStatus(Subscription::STATUS_CANCELED);
         $em->flush();
     }
 }

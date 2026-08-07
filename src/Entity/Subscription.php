@@ -49,6 +49,10 @@ class Subscription
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $stripeSubscriptionId = null;
 
+    /** The PaymentMethod confirmed by the most recent setup Checkout session — used to charge off-session explicitly (matters for PayPal, which Stripe does not reliably resolve via "customer default"). */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stripePaymentMethodId = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -100,6 +104,9 @@ class Subscription
 
     public function getStripeSubscriptionId(): ?string { return $this->stripeSubscriptionId; }
     public function setStripeSubscriptionId(?string $v): static { $this->stripeSubscriptionId = $v; return $this; }
+
+    public function getStripePaymentMethodId(): ?string { return $this->stripePaymentMethodId; }
+    public function setStripePaymentMethodId(?string $v): static { $this->stripePaymentMethodId = $v; return $this; }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }

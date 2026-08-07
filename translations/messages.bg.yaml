@@ -605,6 +605,8 @@ flash.cancelled_capacity: 'Автоматично отказан — слотъ�
 flash.employee_limit_reached: 'Текущият ви план не позволява повече служители. Моля, надградете плана си.'
 flash.plan_invalid:           'Моля, изберете валиден план.'
 flash.plan_checkout_failed:   'Плащането не можа да стартира. Моля, опитайте отново.'
+flash.plan_already_active:    'Вече сте на този план.'
+flash.plan_changed:           'Планът ви беше сменен.'
 book.error.org_unavailable:   'Този бизнес в момента не приема резервации.'
 settings.plan.title:              'Абонаментен план'
 settings.plan.current:            'Текущ план'

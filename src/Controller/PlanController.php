@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Subscription;
 use App\Entity\User;
 use App\Enum\PlanCode;
 use App\Repository\InvoiceRepository;
@@ -53,23 +54,54 @@ class PlanController extends AbstractController
             return $this->redirectToRoute('business_dashboard');
         }
 
+        $subscription = $org->getSubscription();
+
         $planCode = PlanCode::tryFrom($plan);
         if (!$planCode) {
             $this->addFlash('danger', $t->trans('flash.plan_invalid'));
             return $this->redirectToRoute('business_plan');
         }
 
+        if ($planCode === $subscription->getPlan() && $subscription->getStatus() === Subscription::STATUS_ACTIVE) {
+            $this->addFlash('danger', $t->trans('flash.plan_already_active'));
+            return $this->redirectToRoute('business_plan');
+        }
+
+        // During the trial nothing is ever billed, so switching plans is a free, instant local change.
+        if ($subscription->isTrialing()) {
+            $subscription->setPlan($planCode);
+            $em->flush();
+            $this->addFlash('success', $t->trans('flash.plan_changed'));
+            return $this->redirectToRoute('business_plan');
+        }
+
+        // A card is already on file — upgrade/downgrade takes effect immediately, no Stripe round-trip needed.
+        // (Existing suspension state, e.g. an unpaid overdue invoice, is left untouched by a plan change.)
+        try {
+            $hasPaymentMethod = $stripe->hasPaymentMethodOnFile($subscription);
+        } catch (\Throwable) {
+            $hasPaymentMethod = false; // Stripe unreachable/misconfigured — fall through to the Checkout attempt below
+        }
+
+        if ($hasPaymentMethod) {
+            $subscription->setPlan($planCode);
+            $em->flush();
+            $this->addFlash('success', $t->trans('flash.plan_changed'));
+            return $this->redirectToRoute('business_plan');
+        }
+
+        // No payment method yet — collect one via Checkout before the new plan can be billed.
         $successUrl = $urlGenerator->generate('business_plan', ['checkout' => 'success'], UrlGeneratorInterface::ABSOLUTE_URL);
         $cancelUrl  = $urlGenerator->generate('business_plan', ['checkout' => 'cancel'], UrlGeneratorInterface::ABSOLUTE_URL);
 
         try {
-            $session = $stripe->createCheckoutSession($org->getSubscription(), $planCode, $successUrl, $cancelUrl);
+            $session = $stripe->createSetupSession($subscription, $successUrl, $cancelUrl);
         } catch (\Throwable) {
             $this->addFlash('danger', $t->trans('flash.plan_checkout_failed'));
             return $this->redirectToRoute('business_plan');
         }
 
-        $org->getSubscription()->setPlan($planCode);
+        $subscription->setPlan($planCode);
         $em->flush();
 
         return $this->redirect($session->url);

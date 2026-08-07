@@ -5,7 +5,6 @@ namespace App\Service;
 use App\Entity\Invoice;
 use App\Entity\Organization;
 use App\Entity\Subscription;
-use App\Enum\PlanCode;
 use Stripe\Checkout\Session as CheckoutSession;
 use Stripe\Event;
 use Stripe\StripeClient;
@@ -13,14 +12,16 @@ use Stripe\Webhook;
 
 /**
  * Thin wrapper around the Stripe SDK — the single point of contact with Stripe's API.
- * Stripe Price IDs for the 3 flat-fee plans are read from env vars since there is no
- * admin UI to manage them; the pay-per-reservation plan has no fixed Price (variable amount).
  *
- * Payment methods: Apple Pay and Google Pay ride along automatically under the 'card'
- * payment method type in Stripe Checkout — no extra code is needed, only Dashboard
- * toggles (Apple Pay is on by default; Google Pay must be enabled explicitly). PayPal
- * is requested explicitly below and must also be enabled for the Stripe account in the
- * Dashboard (Settings → Payment methods) before it will actually appear at checkout.
+ * All 4 plans are billed the same way: Checkout only ever collects/confirms a saved
+ * payment method (mode 'setup'), never a native Stripe recurring Subscription/Price.
+ * The recurring charge itself is computed and collected off-session by our own
+ * monthly cron (see GenerateMonthlyInvoicesCommand + PlanCatalog::amountDueCents()).
+ * This is deliberate: enterprise has a variable per-employee overage a fixed Stripe
+ * Price can't express, and keeping every plan on the same billing path means changing
+ * plans is a plain local update — no Stripe subscription to swap/cancel/prorate, and
+ * no risk of a business being billed twice (once by Stripe's own subscription cycle,
+ * once by our cron) the way a 'subscription'-mode Checkout would create.
  */
 class StripeService
 {
@@ -53,21 +54,10 @@ class StripeService
         return $customerId;
     }
 
-    public function createCheckoutSession(Subscription $subscription, PlanCode $plan, string $successUrl, string $cancelUrl): CheckoutSession
+    /** Collects/confirms a payment method for future off-session charging — never creates a Stripe Subscription. */
+    public function createSetupSession(Subscription $subscription, string $successUrl, string $cancelUrl): CheckoutSession
     {
         $customerId = $this->ensureCustomer($subscription);
-
-        if ($plan === PlanCode::PAY_PER_RESERVATION) {
-            // No fixed recurring price for this plan — just save a card for later off-session charges.
-            return $this->stripe->checkout->sessions->create([
-                'mode'        => 'setup',
-                'customer'    => $customerId,
-                'success_url' => $successUrl,
-                'cancel_url'  => $cancelUrl,
-            ]);
-        }
-
-        $priceId = $this->priceIdForPlan($plan);
 
         return $this->stripe->checkout->sessions->create([
             'mode'                 => 'subscription',
@@ -81,21 +71,25 @@ class StripeService
         ]);
     }
 
-    private function priceIdForPlan(PlanCode $plan): string
+    /** Resolves the PaymentMethod a completed SetupIntent confirmed, so it can be stored for explicit off-session reuse. */
+    public function resolveSetupPaymentMethod(string $setupIntentId): ?string
     {
-        $envVar = match ($plan) {
-            PlanCode::SMALL_BUSINESS  => 'STRIPE_PRICE_SMALL_BUSINESS',
-            PlanCode::MEDIUM_BUSINESS => 'STRIPE_PRICE_MEDIUM_BUSINESS',
-            PlanCode::ENTERPRISE      => 'STRIPE_PRICE_ENTERPRISE',
-            default => throw new \InvalidArgumentException('Plan has no fixed Stripe price: ' . $plan->value),
-        };
+        $setupIntent = $this->stripe->setupIntents->retrieve($setupIntentId);
 
-        $priceId = $_ENV[$envVar] ?? getenv($envVar);
-        if (!$priceId) {
-            throw new \RuntimeException("Missing Stripe price ID env var: {$envVar}");
+        return $setupIntent->payment_method ?: null;
+    }
+
+    /** Whether the organization already has a payment method on file (no Checkout round-trip needed to change plans). */
+    public function hasPaymentMethodOnFile(Subscription $subscription): bool
+    {
+        $customerId = $subscription->getStripeCustomerId();
+        if (!$customerId) {
+            return false;
         }
 
-        return $priceId;
+        $methods = $this->stripe->paymentMethods->all(['customer' => $customerId, 'limit' => 1]);
+
+        return count($methods->data) > 0;
     }
 
     /** Off-session charge for a variable-amount invoice (pay-per-reservation, enterprise overage). */
@@ -107,14 +101,22 @@ class StripeService
             return; // no payment method on file yet; invoice stays pending until the owner subscribes/pays manually
         }
 
-        $paymentIntent = $this->stripe->paymentIntents->create([
-            'amount'   => $invoice->getAmountDueCents(),
-            'currency' => strtolower($invoice->getCurrency()),
-            'customer' => $customerId,
+        $params = [
+            'amount'      => $invoice->getAmountDueCents(),
+            'currency'    => strtolower($invoice->getCurrency()),
+            'customer'    => $customerId,
             'off_session' => true,
-            'confirm'  => true,
-            'metadata' => ['invoice_id' => (string) $invoice->getId()],
-        ]);
+            'confirm'     => true,
+            'metadata'    => ['invoice_id' => (string) $invoice->getId()],
+        ];
+
+        // Reference the exact saved PaymentMethod rather than relying on the customer's
+        // "default" one — Stripe does not reliably resolve a default for PayPal.
+        if ($subscription->getStripePaymentMethodId()) {
+            $params['payment_method'] = $subscription->getStripePaymentMethodId();
+        }
+
+        $paymentIntent = $this->stripe->paymentIntents->create($params);
 
         $invoice->setStripePaymentIntentId($paymentIntent->id);
     }
