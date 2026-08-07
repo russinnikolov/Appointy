@@ -12,6 +12,7 @@ use Stripe\Webhook;
 
 /**
  * Thin wrapper around the Stripe SDK — the single point of contact with Stripe's API.
+<<<<<<< HEAD
  *
  * All 4 plans are billed the same way: Checkout only ever collects/confirms a saved
  * payment method (mode 'setup'), never a native Stripe recurring Subscription/Price.
@@ -22,6 +23,16 @@ use Stripe\Webhook;
  * plans is a plain local update — no Stripe subscription to swap/cancel/prorate, and
  * no risk of a business being billed twice (once by Stripe's own subscription cycle,
  * once by our cron) the way a 'subscription'-mode Checkout would create.
+=======
+ * Stripe Price IDs for the 3 flat-fee plans are read from env vars since there is no
+ * admin UI to manage them; the pay-per-reservation plan has no fixed Price (variable amount).
+ *
+ * Payment methods: Apple Pay and Google Pay ride along automatically under the 'card'
+ * payment method type in Stripe Checkout — no extra code is needed, only Dashboard
+ * toggles (Apple Pay is on by default; Google Pay must be enabled explicitly). PayPal
+ * is requested explicitly below and must also be enabled for the Stripe account in the
+ * Dashboard (Settings → Payment methods) before it will actually appear at checkout.
+>>>>>>> 95dda2456a91fff7a03f5ae5a9fbb411f735d51f
  */
 class StripeService
 {
@@ -60,11 +71,19 @@ class StripeService
         $customerId = $this->ensureCustomer($subscription);
 
         return $this->stripe->checkout->sessions->create([
+<<<<<<< HEAD
             'mode'                 => 'setup',
             'customer'             => $customerId,
             // Apple Pay / Google Pay ride along automatically under 'card'; PayPal must
             // also be enabled for "recurring payments" on the Stripe account (Dashboard)
             // before a saved PayPal method can actually be charged off-session later.
+=======
+            'mode'                 => 'subscription',
+            'customer'             => $customerId,
+            'line_items'           => [['price' => $priceId, 'quantity' => 1]],
+            // Apple Pay / Google Pay are offered automatically under 'card'; 'paypal'
+            // is opted into explicitly since Stripe does not enable it by default.
+>>>>>>> 95dda2456a91fff7a03f5ae5a9fbb411f735d51f
             'payment_method_types' => ['card', 'paypal'],
             'success_url'          => $successUrl,
             'cancel_url'           => $cancelUrl,
