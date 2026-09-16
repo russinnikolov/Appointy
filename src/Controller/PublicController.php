@@ -64,7 +64,7 @@ class PublicController extends AbstractController
         ServiceRepository $svcRepo,
         EntityManagerInterface $em,
         TranslatorInterface $t,
-        SubscriptionService $subscriptionService
+        SubscriptionService $subscriptionService,
         NotificationService $notifications
     ): Response {
         // Logged-in clients use their own richer booking flow
@@ -235,7 +235,7 @@ class PublicController extends AbstractController
         ServiceRepository $svcRepo,
         EntityManagerInterface $em,
         TranslatorInterface $t,
-        SubscriptionService $subscriptionService
+        SubscriptionService $subscriptionService,
         NotificationService $notifications
     ): Response {
         $org      = $orgRepo->find($orgId);

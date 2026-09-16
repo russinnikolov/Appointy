@@ -91,7 +91,7 @@ class PublicApiController extends AbstractController
         EmployeeRepository $empRepo,
         AppointmentRepository $apptRepo,
         EntityManagerInterface $em,
-        SubscriptionService $subscriptionService
+        SubscriptionService $subscriptionService,
         NotificationService $notifications
     ): JsonResponse {
         $org      = $orgRepo->find($orgId);
